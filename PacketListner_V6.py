@@ -98,7 +98,7 @@ def main():
                localTime = time.localtime(now)
                readTime = time.strftime("%Y-%m-%dT%H:%M:%S",localTime)+local_offset
          #    print("readTime[1:19]=",readTime[0:19])
-               json_body=[{'measurement': 'power','time':str(now),
+               json_body=[{'measurement': 'power','time':time.strftime("%Y-%m-%dT%H:%M:%S",localTime),
                   'fields':{'local_dt':readTime[0:19],
                      'interval':interval,
                      'SOC':soc,
