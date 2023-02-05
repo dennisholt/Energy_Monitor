@@ -6,3 +6,7 @@ First subproject: Magnum data -> influx -> grafana
 -    Identify which peramaters to put on dashboard
 -    Find-out and set-up influx database with retention policies and auto query to down-sample to broader view dashboards.
 -   Ben to schedule next Huddle
+
+2023-02-05  Huddle with Ben
+Moved PacketListnerV6.py to folder Energy_Monitor
+Fixed time structure in json to Influx
