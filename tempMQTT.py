@@ -4,6 +4,11 @@
 # turn on or off heating lamps via MQTT based on closet temp; 
 # Store temperatures, lamp control changes and power in influxdb.
 # Hope the Pi-0 can handle this. 
+# Had problems with the Pi-0 locking up and loosing temp control in Dec'22 & Jan'23
+#    tried putting a better power supply on it and it happened again
+#    went back to using the old plug with its own temp sensor
+#  now Feb 8, 2023  will lock S31 plug on and only use it to monitor power, plug old plug into S31
+#      Take plug on / off commands out of this program and only read and report power
 
 # getting influxdb installed and running on Rpi
 # sudo apt update
@@ -183,17 +188,17 @@ def do_temp_log_control(sensors, local_offset):
             temperature = -9999.0
         flds_Dict.update({sensor.location : temperature})
     closetTemp=flds_Dict.get('Closet')
-    if not closetTemp == -9999.0:
+#    if not closetTemp == -9999.0:
 #        print('the temperature is= ', closetTemp,'C')
-        if closetTemp < turn_on_temp and plug_state == 'OFF':
-            ret=client.publish("cmnd/S31B/POWER", "ON",1)
-            time.sleep(0.1)
+#        if closetTemp < turn_on_temp and plug_state == 'OFF':
+#            ret=client.publish("cmnd/S31B/POWER", "ON",1)
+#            time.sleep(0.1)
 #            ret=client.publish("cmnd/S31B/Status", "11",0)
     #        print("pub on ret=",ret)
 
-        if closetTemp > turn_off_temp and plug_state == 'ON':
-            ret=client.publish("cmnd/S31B/POWER", "OFF",1)
-            time.sleep(0.1)
+#        if closetTemp > turn_off_temp and plug_state == 'ON':
+#            ret=client.publish("cmnd/S31B/POWER", "OFF",1)
+#            time.sleep(0.1)
 #            ret=client.publish("cmnd/S31B/Status", "11",0)
     #        print("pub off ret=",ret)  
     #    print("flds_Dict=",flds_Dict)
