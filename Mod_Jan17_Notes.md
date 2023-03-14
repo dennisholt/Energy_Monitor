@@ -61,4 +61,12 @@ Found battery temp low and heater not comming on. Appears control program crashe
 Issue collect SOC, battery power flow, and voltage from Batrium to Influx and Grafana dashboard. I thought this would be easy. Modify the PacketListner that collected battery pack voltage to send it to Influx. Not working yet. Learning. It will be a great step forward when it works. 
 
 Feb 5, 2023
+    GIT process: modify > add > commit with comment > sync
+    Package manager: Homebrew (good default) works for OS and Python
+        apt-get   works for linux OS
+        pip3      works for python
+    brew leves    displays installed packages
+    pip3 list     displays installed packages
+    pipdeptree    displays installed packages in dependency tree
+
 

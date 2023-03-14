@@ -66,7 +66,7 @@ show shards gives sense of shard files
 Where are the influxdb log file???
 
 What we want to collect eventually:
-interval, local_dt, mo_yr    Note mo_yr is a tag groupby , * groups by all tags
+interval, local_dt, yr_mo    Note yr_mo is a tag groupby , * groups by all tags
 temp: Bat_closet; Outdoor; Shed; House
 Battery: SOC; AHr_to_Empty; Current; Voltage; Watts; cum_kWhr
   Heater: state; watts; cum_kWhr
@@ -82,26 +82,31 @@ set retention policies:
   CREATE RETENTION POLICY "m30" ON "battery_db" DURATION 12w 
   CREATE RETENTION POLICY "d1" ON "battery_db" DURATION 104w 
   CREATE RETENTION POLICY "d30" ON "battery_db" DURATION INF 
-  
+--RESAMPLE EVERY 10m FOR 12m
+
 CREATE CONTINUOUS QUERY "cq_temp_m5" ON "battery_db" 
-RESAMPLE EVERY 6h FOR 7h
 BEGIN
-  SELECT mean("temp_closet") AS "avg_temp_closet",
+  SELECT sum("interval") AS "interval",
+    first("local_dt") AS "local_dt",
+    mean("temp_closet") AS "avg_temp_closet",
     max("temp_closet") AS "max_temp_closet",
     min("temp_closet") AS "min_temp_closet",
     mean("temp_shed") AS "avg_temp_shed",
     mean("temp_outdoor") AS "avg_temp_outdoor",
-    last("heater") AS "heater",
+    first("heater") AS "heater",
     sum("heater" * "interval") AS "heater_on",
-    last("heater_watts") AS "heater_watts",
-    sum("interval" * "hearter_watts") * 0.001/3600 AS "heater_kWhr",
-    sum("interval") AS "interval",
-    last("local_dt") AS "local_dt",
-    last("mo_yr") AS "mo_yr"
-  INTO "m5"."m5_temp"
+    first("heater_watts") AS "heater_watts",
+    last("heater_kWhr") - first(heater_kWhr)  AS "heater_kWhr"
+  INTO "m5"."temp"
   FROM "temp"
-  GROUP BY time(5m), *   note: , * groups by all tags
+  GROUP BY time(5m), *   note: , * groups by all tags preserving tages in output
 END
+to edit: DROP CONTINUOUS QUERY "cq_temp_m5" ON "battery_db"   then create new version
+CREATE CONTINUOUS QUERY "cq_temp_m5" ON "battery_db" BEGIN SELECT sum("interval") AS "interval", first("local_dt") AS "local_dt", mean("temp_closet") AS "avg_temp_closet", max("temp_closet") AS "max_temp_closet", min("temp_closet") AS "min_temp_closet", mean("temp_shed") AS "avg_temp_shed", mean("temp_outdoor") AS "avg_temp_outdoor", first("heater") AS "heater", sum("heater" * "interval") AS "heater_on", first("heater_watts") AS "heater_watts", last("heater_kWhr") - first(heater_kWhr)  AS "heater_kWhr" INTO "m5"."temp" FROM "temp" GROUP BY time(5m), * END
+
+"m5"."temp" will have "time" "yr_mo" "interval" "local_dt" "avg_temp_closet" "max_temp_closet" "min_temp_closet"
+                      "avg_temp_shed" "avg_temp_outdoor" "heater" "heater_on" "heater_watts" "heater_kWhr"
+
 
 CREATE CONTINUOUS QUERY "cq_temp_m30" ON "battery_db" 
 RESAMPLE EVERY 6h FOR 7h
@@ -117,11 +122,13 @@ BEGIN
     sum("heater_kWhr") AS "heater_kWhr",
     sum("interval") AS "interval",
     last("local_dt") AS "local_dt",
-    last("mo_yr") AS "mo_yr"
-  INTO "m30"."m30_temp"
-  FROM "m5"."m5_temp"
+    last("yr_mo") AS "yr_mo"
+  INTO "m30"."temp"
+  FROM "m5"."temp"
   GROUP BY time(30m), *   note: , * groups by all tags
 END
+
+CREATE CONTINUOUS QUERY "cq_temp_m30" ON "battery_db" RESAMPLE EVERY 6h FOR 7h BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", last("heater") AS "heater", sum("heater_on") AS "heater_on", last("heater_watts") AS "heater_watts", sum("heater_kWhr") AS "heater_kWhr", sum("interval") AS "interval", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "m30"."temp" FROM "m5"."temp" GROUP BY time(30m), * END
 
 CREATE CONTINUOUS QUERY "cq_temp_d1" ON "battery_db" 
 BEGIN
@@ -135,11 +142,13 @@ BEGIN
     sum("interval") / 3600 AS "interval",
     sum("heater_kWhr") AS "heater_kWhr",
     last("local_dt") AS "local_dt",
-    last("mo_yr") AS "mo_yr"
-  INTO "d1"."d1_temp"
+    last("yr_mo") AS "yr_mo"
+  INTO "d1"."temp"
   FROM "m30"."m30_temp"
   GROUP BY time(1d), *   note: , * groups by all tags
 END
+
+CREATE CONTINUOUS QUERY "cq_temp_d1" ON "battery_db" BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", sum("heater_on") / 3600 AS "heater_on", sum("heater_on") / sum("interval") AS "pct.heater_on", sum("interval") / 3600 AS "interval", sum("heater_kWhr") AS "heater_kWhr", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d1"."temp" FROM "m30"."temp" GROUP BY time(1d), * END
 
 CREATE CONTINUOUS QUERY "cq_temp_d30" ON "battery_db" BEGIN
   SELECT mean("avg_temp_closet") AS "avg_temp_closet",
@@ -152,11 +161,13 @@ CREATE CONTINUOUS QUERY "cq_temp_d30" ON "battery_db" BEGIN
     sum("interval") AS "interval",
     sum("heater_kWhr") AS "heater_kWhr",
     last("local_dt") AS "local_dt",
-    last("mo_yr") AS "mo_yr"
-  INTO "d30"."d30_temp"
-  FROM "d1"."d1_temp"
-  GROUP BY "mo_yr"
+    last("yr_mo") AS "yr_mo"
+  INTO "d30"."temp"
+  FROM "d1"."temp"
+  GROUP BY "yr_mo"
 END
+
+CREATE CONTINUOUS QUERY "cq_temp_d30" ON "battery_db" BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", sum("heater_on") AS "heater_on", sum("heater_on") / sum("interval") AS "pct.heater_on", sum("interval") AS "interval", sum("heater_kWhr") AS "heater_kWhr", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d30"."temp" FROM "d1"."temp" GROUP BY "yr_mo" END
 
 ssh pi@solarPi4
 influx
@@ -188,3 +199,18 @@ Entries are made by DietPi, (heater from old_plug)
   measure = temp: fields = local_dt, interval, heater[0,1], heater_watts, cum_kWh, temp_closet, temp_shed, temp_outdoor,
 PacketListner
   measure = battery: fields = local_dt, interval, SOC, bat_amps_in, bat_volts, bat_ah_to_empty, bat_cum_kWh_in,
+
+2023 March 14:
+Got tempMQTT_V2.py working and Influx measure temp looks ok 
+Not sure if CQ is working. CQ m5 didn't appear to run but I may have had the name wrong.
+I thought it was just "m5" but it is "cq_temp_m5". 
+is Only one in db right now.  Hope to go up tomorrow and check. 
+
+Tomorrow: Check CQ;  
+    set V2 to run as background service on DietPi. 
+    Collect Ra data;
+    Grafana dashboard pulling from battery_db temp
+    
+
+
+
