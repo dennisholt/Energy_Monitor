@@ -217,6 +217,7 @@ def write_record(mqtt_client, influx_client, sensors):
                             "temp_shed":temp_shed,
                             "temp_outdoor":temp_outdoor,
                             "heater":heater,                  # from MQTT BatTempPlug status change
+                            "heat_interval":interval * heater,
                             "heater_watts":heater_watts,      # from S31B MQTT status request
                             "heater_kWhr":heater_kWhr}        # from the above S31B request
                 }]

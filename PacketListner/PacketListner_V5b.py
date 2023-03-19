@@ -15,6 +15,7 @@ Goal: monitor Batrium UDP and log datetime, message type, length to file = 'Batr
     write to 3 .csv files
 Aug 15, 2022 Trying to get it to run as service. Made file paths fully specified; Commented out all print()
    Porblem with status being written out is status from previous time However time is current time.
+Aug 24, 2022 make one record at each collection time; start collecting cum Ahr from message 3F34
 '''
 import socket
 import struct
@@ -23,18 +24,16 @@ import time
 import array
 
 def main():
-   conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-   f_status = open('/home/pi/Packet_Listner/Battery_Status_a.csv', 'a')
-   # f_status.write('Time, DateTime, SOC, DC_V, DC_A\n')
-   f_nodes1_16 = open('/home/pi/Packet_Listner/Battery_nodes1_16_a.csv', 'a')
-   # f_nodes1_16.write('Time, DateTime, n01_v, n02_v, n03_v, n04_v, n05_v, ' +
+   
+   f_status = open('/home/pi/Packet_Listner/Battery_Status_B.csv', 'a')
+   
+   # f_status.write('Time, DateTime, n01_v, n02_v, n03_v, n04_v, n05_v, ' +
    # 'n06_v, n07_v, n08_v, n09_v, n10_v, n11_v, n12_v, n13_v, n14_v, n15_v, ' +
-   # 'n16_v\n')
-   f_nodes17_28 = open('/home/pi/Packet_Listner/Battery_nodes17_28_a.csv', 'a')
-   # f_nodes17_28.write('Time, DateTime, n17_v, n18_v, n19_v, n20_v, ' +
-   # 'n21_v, n22_v, n23_v, n24_v, n25_v, n26_v, n27_v, n28_v\n')
+   # 'n16_v, n17_v, n18_v, n19_v, n20_v, n21_v, n22_v, n23_v, n24_v, ' +
+   # 'n25_v, n26_v, n27_v, n28_v, SOC, DC_V, DC_A, Ahr\n')
+
    t_start = time.time()
-   need_status = True
+   need_soc = True
    need_nodes1_16 = True
    need_nodes17_28 = True 
    
@@ -42,10 +41,10 @@ def main():
       # for idx in range(0, 30):
       t = time.time()
       if t >= t_start:
-         raw_data, addr = conn.recvfrom(655365) # get a packet
-         dt = time.strftime('%m/%d %H:%M', time.localtime(t))
+         conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
+         raw_data, addr = conn.recvfrom(1024) # get a packet
          dest_mac, src_mac, eth_proto, data = ethernet_frame(raw_data)
-
+         conn.close()
          # 8 for IPv4 (we are only interested in IPv4 UDP packets)
          if eth_proto == 8 and len(data) >= 20:
          #   print('data length= ', len(data))
@@ -69,56 +68,67 @@ def main():
                mesType = batrum_packet(data)
                if mesType == 0x415A and (need_nodes1_16 or need_nodes17_28):
 #                  print('0x415A message detected')
-                  continue 
                   rx_node, records, first_id, last_id = struct.unpack('! 8x B B B B', data[:12])
          #         print('Records= {} first_id {} last_id {} Time {} DT {}'.format(records, first_id, last_id, t, dt))
-                  out = str(t) + ', ' + dt
+                  out = ''
                   for i in range(0, records):
                      start = i * 11 + 12
                      node_id, min_v, max_v = struct.unpack('< B x H H', data[start:start+6])
                      min_v = min_v / 1000
                      max_v = max_v / 1000
-                     node_v = round((min_v + max_v) / 2, 2)
+                     node_v = round((min_v + max_v) / 2, 3)
          #             print('node {} voltage= {}'.format(node_id, node_v))
-                     out = out + ', ' + str(node_v)
+                     out = out + str(node_v)+ ', '
                   if first_id == 1 and need_nodes1_16:
-                     f_nodes1_16.write(out + '\n')
+                     out_a = out
                      need_nodes1_16 = False
                   elif first_id == 17 and need_nodes17_28:
-                     f_nodes17_28.write(out + '\n')
+                     out_b = out
                      need_nodes17_28 = False
 
-               elif mesType == 0x5732 and need_status:
+#               elif mesType == 0x5732 and need_soc:
 #                  print('0x5732 message detected', ' Time= ', dt, ' stat= ', str(need_status), ' 1-16= ', str(need_nodes1_16), ' 17-28= ', str(need_nodes17_28))
-                  soc_raw, shunt_v, shunt_c = struct.unpack('< 41x B H f', data[:48])
-                  dt2 = time.strftime('%H:%M:%S', time.localtime(time.time()))
-                  soc = soc_raw * 0.5 - 5
-                  shunt_v = shunt_v / 100
-                  shunt_c = round(shunt_c / 1000, 2)
-                  out = str(t) +', '+ dt +', ' + str(soc) +', ' + str(shunt_v) + ', ' + str(shunt_c) 
-                  print('{} {}  SOC= {} Battery Voltage= {} Battery Current= {}'.format(dt, dt2, soc, shunt_v, shunt_c ))
-         #          print(out)
+#                  soc_raw, shunt_v, shunt_c = struct.unpack('< 41x B H f', data[:48])
+#                  soc = soc_raw * 0.5 - 5
+#                  shunt_v = shunt_v / 100
+#                  shunt_c = round(shunt_c / 1000, 2)
+#                  out_c = str(soc) +', ' + str(shunt_v) + ', ' + str(shunt_c) + ', '
+#                  print('SOC= {} Battery Voltage= {} Battery Current= {}'.format(soc, shunt_v, shunt_c ))
+#                  print(out)
 #                  f_status.write(out + '\n')
 #                  need_status = False
+                  
+               elif mesType == 0x3F34 and need_soc:
+                  shunt_v, shunt_c, soc, cap2empty = struct.unpack('< 12x H f 4x H 6x f', data[:34])
+                  shunt_v = shunt_v / 100
+                  shunt_c = round(shunt_c / 1000, 2)
+                  soc = soc / 100  
+                  cap2empty = cap2empty / 1000 
+                  out_c = str(soc) +', ' + str(shunt_v) + ', ' + str(shunt_c) + ', ' + str(cap2empty)
+ #                 print('SOC= {} Battery Voltage= {} Battery Current= {} Capacity= {}'.format(soc, shunt_v, shunt_c, cap2empty ))
+         #          print(out)
+                  need_soc = False
+                  
+# if we have everything time stamp, output and reset
+               if not (need_soc or need_nodes1_16 or need_nodes17_28):
+                  now = time.time()
+                  dt = time.strftime('%m/%d %H:%M', time.localtime(now))
+                  out = str(now) +', '+ dt +', ' + out_a + out_b + out_c  
+                  f_status.write(out + '\n')
+                  f_status.flush() 
                   if soc < 30:
                      time_step = 30       # if soc < 30% log every 30 sec
-                  else: time_step = 0   # if soc >= 30% log every 15 min (900 sec)
-#               else: continue
-               if not (need_status or need_nodes1_16 or need_nodes17_28):
-                  t_start = t + time_step
-                  need_status = True
+                  else: time_step = 900   # if soc >= 30% log every 15 min (900 sec)
+                  t_start = now + time_step                 
+                  out_a = out_b = out_c = out_d  = ''           
+                  need_soc = True
                   need_nodes1_16 = True
                   need_nodes17_28 = True
-                  print("output ", dt) 
-                  f_status.flush() 
-                  f_nodes1_16.flush()
-                  f_nodes17_28.flush()
                continue 
             else: continue    
 
    f_status.close() 
-   f_nodes1_16.close()
-   f_nodes17_28.close()
+
 
 def batrum_packet(data):
    mesType = struct.unpack('< x H', data[:3])[0]

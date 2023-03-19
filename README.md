@@ -7,9 +7,9 @@ To Do
 =====
 - [ ] Magnum to Influx
 - [ ] Batrium to Influx
-- [ ] Battery temperature to Influx
-- [ ] Graphana dashboard from Influx
-- [ ] New Influx DB with retention policies and continuous queries
+- [x] Battery temperature to Influx
+- [i] Graphana dashboard from Influx
+- [i] New Influx DB with retention policies and continuous queries
 - [ ]      may need to add cum_kWh into continuous querys
 
 
@@ -20,4 +20,10 @@ Ben Help
 - Slides to scan
 - family bank 
 - time stamp z
-
+- python extension loading....
+-tempMQTT_V2.py
+    - Scope of classes like influx_client
+    - are there precompile constants def MQTT_host = "DietPi" without being a global
+    - How to handle onMessage call back function: global closet_temp_msg = ""
+            while closet_temp_msg == "":
+    

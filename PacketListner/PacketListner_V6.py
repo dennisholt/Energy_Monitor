@@ -1,52 +1,63 @@
 #!/usr/bin python3
 '''
-Jan 17, 2022  by: Dennis Holt
+March 18, 2023  Revising PacketListner_V5b.py to write batrium status stuff to Influx database.
+by: Dennis Holt
 UDP listener and parser for datalogging battery condition
 resources:
    https://kirands-python-networkinglinuxscripts.blogspot.com/2017/02/ethernet-header-ip-tcp-udp-packet.html
    run as service: https://learn.sparkfun.com/tutorials/how-to-run-a-raspberry-pi-program-on-startup/all
 Batrium UDP destination port: 18542
+Batrium updates the message mapping here: https://github.com/Batrium/WatchMonUdpListener/tree/master/payload
 Message type bytes 1-2
     415A Individual cell monitor Basic Status (subset for up to 16)
-    5732 System iscovery Info (contains SOC, and shunt data)
-Goal: monitor Batrium UDP and log datetime, message type, length to file = 'BatriumMessages.csv'
-    Time, DateTime, Port, Message Type, Length
-    write to 3 .csv files
-Aug 15, 2022 Trying to get it to run as service. Made file paths fully specified; Commented out all print()
-   Porblem with status being written out is status from previous time However time is current time.
-Aug 24, 2022 make one record at each collection time; start collecting cum Ahr from message 3F34
-Jan 17, 2023 convert to output SOC, Watts, cumAhr to Influxdb
+    5732 System is Info (contains SOC, and shunt data)
+
+Before we get into the real logger
+   Let's log the frequency these two message types occure
+
+What we want to get:
+   SOC, Ahr to empty, bat voltage, bat current, cum watts into bat
+   min pack voltage, which pack
+   min pack temp, which pack
+   CQ cum energy into battery
+      min/max watts out of bat
+      min/max watts into bat
+      generator run time
+
 '''
 import socket
 import struct
-import textwrap
+# import textwrap
 import time
 import array
 from influxdb import InfluxDBClient
 import json
 
-def setLocalOffset():        # needs to run periodically (daily)
-   now = time.localtime(time.time())
-   today = time.strftime("%Y-%m-%d",now)
-   if now[8] == 1:  # is local time DST?
-      local_offset = "-04:00"   # DST
-   else:
-      local_offset = "-05:00"   # STD
-   print("local_offset = ", local_offset, "today = ", today)
-   return today, local_offset
+### Initialization ###
+###    Globals     ###
+influx_client = None
+measure_interval = 60  # measure battery characteristics every x seconds
 
-# Objective to Influxdb ('TimeStamp, DateTime, SOC, Ahr, DC_Watts, DC_V, DC_A')
+def influx_init():
+# connect to influx database
+    influx_client = InfluxDBClient(host='localhost', port=8086) # 'solarPi4'
+    influx_client.switch_database('battery_db')
+    return influx_client
+
 def main():
-   reading_interval = 0  # wait time between readings (seconds)
-   cycle = 0
    then = time.time()
-# get today's date and the time zone offset (check for daylight savings time)   
-   today, local_offset = setLocalOffset()              # needs to run periodically (daily)
+   # set up ethernet socket 
    socket_conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
+
    # connect to influx database
-   influx_client = InfluxDBClient(host='localhost', port=8086)
-   influx_client.switch_database('bat_closet')
+   influx_client = influx_init()
+
+# Let's find out how frequently the two batrium packets of interest are transmitted.
    while True:
+      # collect UDP packets  and calc aggregate measures
+      # after measure_interval write data to influx; reset aggregates and go back to collecting
+      # perhaps make measure a class 
+      # how to handle time interval between UDP updates into avg etc...
       time.sleep(reading_interval)
       t = time.time()
       cycle = cycle +1

@@ -102,7 +102,7 @@ BEGIN
   GROUP BY time(5m), *   note: , * groups by all tags preserving tages in output
 END
 to edit: DROP CONTINUOUS QUERY "cq_temp_m5" ON "battery_db"   then create new version
-CREATE CONTINUOUS QUERY "cq_temp_m5" ON "battery_db" BEGIN SELECT sum("interval") AS "interval", first("local_dt") AS "local_dt", mean("temp_closet") AS "avg_temp_closet", max("temp_closet") AS "max_temp_closet", min("temp_closet") AS "min_temp_closet", mean("temp_shed") AS "avg_temp_shed", mean("temp_outdoor") AS "avg_temp_outdoor", first("heater") AS "heater", sum("heater" * "interval") AS "heater_on", first("heater_watts") AS "heater_watts", last("heater_kWhr") - first(heater_kWhr)  AS "heater_kWhr" INTO "m5"."temp" FROM "temp" GROUP BY time(5m), * END
+CREATE CONTINUOUS QUERY "cq_temp_m5" ON "battery_db" BEGIN SELECT sum("interval") AS "interval", first("local_dt") AS "local_dt", mean("temp_closet") AS "avg_temp_closet", max("temp_closet") AS "max_temp_closet", min("temp_closet") AS "min_temp_closet", mean("temp_shed") AS "avg_temp_shed", mean("temp_outdoor") AS "avg_temp_outdoor", first("heater") AS "heater", sum("heat_interval") AS "heater_on", first("heater_watts") AS "heater_watts", last("heater_kWhr") AS "heater_last_kWhr", first(heater_kWhr) AS "heater_first_kWhr" INTO "m5"."temp" FROM "temp" GROUP BY time(5m), * END
 
 "m5"."temp" will have "time" "yr_mo" "interval" "local_dt" "avg_temp_closet" "max_temp_closet" "min_temp_closet"
                       "avg_temp_shed" "avg_temp_outdoor" "heater" "heater_on" "heater_watts" "heater_kWhr"
@@ -210,7 +210,12 @@ Tomorrow: Check CQ;
     set V2 to run as background service on DietPi. 
     Collect Ra data;
     Grafana dashboard pulling from battery_db temp
-    
+      Grafana tutorial: https://www.youtube.com/watch?v=4qpI4T6_bUw
 
+Problem in Continuous Query:
+  sum(heater * interval) AS heater_on    -> make field in s5.temp heat_interval
+  last(heater_kWhr) - first(heater_kWhr) AS heater_kWhr  -> make two separate fields in m5
+
+  "heat_interval"
 
 
