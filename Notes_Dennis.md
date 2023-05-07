@@ -218,4 +218,134 @@ Problem in Continuous Query:
 
   "heat_interval"
 
+Talk with Ben March 19, 2023
+Data classes: https://docs.python.org/3/library/dataclasses.html
+turn hex into string: data.hex() - convert bytes to hex string
+bytes.fromhex(hex_string) - convert hex string to bytes
+
+March 22, 2023
+Influx measure to .csv
+$ influx -precision 'rfc3339' -database 'bat_closet'
+    -execute 'select * from power' -format csv > power1.csv
+Then FileZilla sftp to MacBook
+Can clear database table with: influx > drop measurement power 
+
+At Jeff's: Stop tempMQTT_V2 service & Run in terminal sudo python3...
+Turn plug off & on and see what errors come up. 
+Filezilla new versoin to DietPi and see if that works in terminal. if so start as service
+
+Transfer Batrium mes3F34, 3233, 3E33 to .csv on macBook
+Drop other mesage measures
+
+Test data class for aggregating voltage, current, min pack voltage and temp
+
+study influxql functions for better way to do things.  
+
+pi@DietPi:~/Programs/tempMQTT_V2$ sudo python3 tempMQTT_V2.py
+Waiting for heater_status_msg
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.9/threading.py", line 954, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.9/threading.py", line 892, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 3591, in _thread_main
+    self.loop_forever(retry_first_connection=True)
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 1756, in loop_forever
+    rc = self._loop(timeout)
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 1164, in _loop
+    rc = self.loop_read()
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 1556, in loop_read
+    rc = self._packet_read()
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 2439, in _packet_read
+    rc = self._packet_handle()
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 3033, in _packet_handle
+    return self._handle_publish()
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 3327, in _handle_publish
+    self._handle_on_message(message)
+  File "/usr/local/lib/python3.9/dist-packages/paho/mqtt/client.py", line 3570, in _handle_on_message
+    on_message(self, self._userdata, message)
+  File "/home/pi/Programs/tempMQTT_V2/tempMQTT_V2.py", line 302, in on_message
+    write_record(mqtt_client, influx_client, sensors)
+  File "/home/pi/Programs/tempMQTT_V2/tempMQTT_V2.py", line 175, in write_record
+    ret = mqtt_client.publish("cmnd/BatTempPlug/Status", "",0) # get old plug state
+AttributeError: 'NoneType' object has no attribute 'publish'
+^CTraceback (most recent call last):
+  File "/home/pi/Programs/tempMQTT_V2/tempMQTT_V2.py", line 320, in <module>
+    main()
+  File "/home/pi/Programs/tempMQTT_V2/tempMQTT_V2.py", line 236, in main
+    time.sleep(temp_interval)
+
+Line continuation
+global in main
+call routine from callback without holding call back waiting for a return
+think about heater status change and the interval evaluation for power integration
+
+influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from mes3233' -format csv > mes3233.csv
+
+Apr 14, 2023
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from s5.temp' -format csv > stemp.csv
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m5.temp' -format csv > mtemp.csv
+> show retention policies
+name    duration   shardGroupDuration replicaN default
+----    --------   ------------------ -------- -------
+autogen 0s         168h0m0s           1        false
+s5      120h0m0s   24h0m0s            1        true
+m5      504h0m0s   24h0m0s            1        false
+m30     2016h0m0s  24h0m0s            1        false
+d1      17472h0m0s 168h0m0s           1        false
+d30     0s         168h0m0s           1        false
+
+Apr 18, 2023
+> use battery_db
+Using database battery_db
+> CREATE CONTINUOUS QUERY "cq_temp_d30" ON "battery_db" BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", sum("heater_on") AS "heater_on", sum("heater_on") / sum("interval") AS "pct.heater_on", sum("interval") AS "interval", sum("heater_kWhr") AS "heater_kWhr", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d30"."temp" FROM "d1"."temp" GROUP BY "yr_mo" END
+ERR: error parsing query: found yr_mo, expected GROUP BY time(...) at line 1, char 551
+
+> show continuous queries
+name: battery_db
+name        query
+----        -----
+cq_temp_m5  CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, first(heater) AS heater, sum(heat_interval) AS heater_on, first(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+cq_temp_m30 CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, last(heater) AS heater, sum(heater_on) AS heater_on, last(heater_watts) AS heater_watts, sum(heater_kWhr) AS heater_kWhr, sum(interval) AS interval, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.m30.temp FROM battery_db.m5.temp GROUP BY time(30m), * END
+cq_temp_d1  CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / 3600 AS heater_on, sum(heater_on) / sum(interval) AS "pct.heater_on", sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.d1.temp FROM battery_db.m30.temp GROUP BY time(1d), * END
+
+> select * from m5.temp limit 10
+time                avg_temp_closet    avg_temp_outdoor avg_temp_shed heater heater_first_kWhr heater_last_kWhr heater_on heater_watts interval           local_dt            max_temp_closet min_temp_closet yr_mo
+
+> select * from m30.temp limit 10
+name: temp
+time                avg_temp_closet    avg_temp_outdoor   avg_temp_shed      heater heater_on heater_watts interval    local_dt            max_temp_closet min_temp_closet yr_mo
+
+> SELECT MEAN("avg_temp_closet") FROM "m5"."temp" GROUP BY "yr_mo"
+name: temp
+tags: yr_mo=23-03
+time mean
+---- ----
+0    16.452868055555562
+
+name: temp
+tags: yr_mo=23-04
+time mean
+---- ----
+0    17.756531811036666
+
+> select * from "d1"."temp"
+> 
+Perhaps I need something in "d1"."temp" before I can establish continuous query that uses tag in "d1"
+> select * from "d1"."temp"
+name: temp
+time                avg_temp_closet    avg_temp_outdoor   avg_temp_shed      heater_on          interval           local_dt            max_temp_closet min_temp_closet pct.heater_on       yr_mo
+----                ---------------    ----------------   -------------      ---------          --------           --------            --------------- --------------- -------------       -----
+1681776000000000000 18.627041666666667 14.075442708333332 15.797447916666664 0                  9.998763376944444  2023-04-18T19:55:00 20.4            15.5            0                   23-04
+1681862400000000000 16.594525462962963 8.876414207175925  12.375441261574075 2.2427454502777775 24.01514775137694  2023-04-19T19:55:54 18.1            15.1            0.09338878417473767 23-04
+1681948800000000000 16.14423611111111  10.820804398148148 13.526493778935189 1.669250011388889  23.983719094127228 2023-04-20T19:55:56 18.1            15.1            0.06959929795865687 23-04
+1682035200000000000 17.439068287037035 12.186480034722218 15.273213252314811 1.3490125683333334 23.98431257507917  2023-04-21T19:55:00 19.5            15.1            0.05624562155410787 23-04
+> 
+CREATE CONTINUOUS QUERY "cq_temp_d30" ON "battery_db" BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", sum("heater_on") AS "heater_on", sum("heater_on") / sum("interval") AS "pct.heater_on", sum("interval") AS "interval", sum("heater_kWhr") AS "heater_kWhr", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d30"."temp" FROM "d1"."temp" GROUP BY "yr_mo" END
+
+ERR: error parsing query: found yr_mo, expected GROUP BY time(...) at line 1, char 551
+
+SELECT MEAN("avg_temp_closet") FROM "d1"."temp" GROUP BY "yr_mo"
+
 

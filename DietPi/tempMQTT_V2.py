@@ -87,6 +87,7 @@ import adafruit_mcp9808
 import paho.mqtt.client as mqtt
 import json
 from queue import Queue
+from threading import Thread
 
 ### Initialization ###
 ###    Globals     ###
@@ -224,6 +225,7 @@ def write_record(mqtt_client, influx_client, sensors):
     ret = influx_client.write_points(json_body)
 
 def main():
+    global mqtt_client, influx_client, sensors
     # Set up MQTT and subscribe to all messages
     mqtt_client = mqtt_init()
     # connect to Influx database    
@@ -280,8 +282,9 @@ def main():
 #                                                         "Current":0.000} } }
 # Put messages of interest in GLOBAL; If heater status changes call write a record
 def on_message(client, userdata, message):
-    global heater_status_msg, closet_temp_msg, heater_power_msg, mqtt_client, influx_client, sensors 
+    global heater_status_msg, closet_temp_msg, heater_power_msg, heater_prior_st, mqtt_client, influx_client, sensors
 #   q.put(message)
+#    print("On_message")
     decoded_message = str(message.payload.decode("utf-8"))     
     if message.topic == "stat/S31B/STATUS10":
         heater_power_msg = decoded_message
@@ -290,6 +293,7 @@ def on_message(client, userdata, message):
         closet_temp_msg = decoded_message
 
     if message.topic == "stat/BatTempPlug/STATUS":
+#        print("Battery temp plug status message received.")
         heater_status_msg = decoded_message
 
     if message.topic == "stat/BatTempPlug/RESULT":
@@ -299,7 +303,10 @@ def on_message(client, userdata, message):
         else:
             pwr = 1
         if pwr != heater_prior_st:
-            write_record(mqtt_client, influx_client, sensors)
+            heater_prior_st = pwr
+            switched = Thread(target = write_record, args = (mqtt_client, influx_client, sensors))
+            switched.start()
+#            write_record(mqtt_client, influx_client, sensors)
 
 
 def on_publish(client, userdata, mid):
