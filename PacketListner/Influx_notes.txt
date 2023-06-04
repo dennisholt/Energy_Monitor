@@ -1,0 +1,10 @@
+Using Influx v 1.8 32bit depreciated they are moving on to v2 which is 64bit requires 64bit OS on Pi.
+Will need to shift to Influx V2 at some point
+InfluxDB Python docs at: https://influxdb-python.readthedocs.io/en/latest/include-readme.html
+InfluxDB V1.8 docs at: https://docs.influxdata.com/influxdb/v1.8/guides/
+try double quotes in: drop measurement "m30.battery"  Works
+query: select * from m30.battery WHERE time > now() - 60s
+> select * FROM s30.battery WHERE time > now() - 1h
+$ sudo systemctl start PacketListner
+sudo systemctl status PacketListner
+

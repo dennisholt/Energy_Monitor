@@ -342,10 +342,173 @@ time                avg_temp_closet    avg_temp_outdoor   avg_temp_shed      hea
 1681948800000000000 16.14423611111111  10.820804398148148 13.526493778935189 1.669250011388889  23.983719094127228 2023-04-20T19:55:56 18.1            15.1            0.06959929795865687 23-04
 1682035200000000000 17.439068287037035 12.186480034722218 15.273213252314811 1.3490125683333334 23.98431257507917  2023-04-21T19:55:00 19.5            15.1            0.05624562155410787 23-04
 > 
-CREATE CONTINUOUS QUERY "cq_temp_d30" ON "battery_db" BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", sum("heater_on") AS "heater_on", sum("heater_on") / sum("interval") AS "pct.heater_on", sum("interval") AS "interval", sum("heater_kWhr") AS "heater_kWhr", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d30"."temp" FROM "d1"."temp" GROUP BY "yr_mo" END
+CREATE CONTINUOUS QUERY "cq_temp_m5" ON "battery_db" BEGIN SELECT mean("avg_temp_closet") AS "avg_temp_closet", max("max_temp_closet") AS "max_temp_closet", min("min_temp_closet") AS "min_temp_closet", mean("avg_temp_shed") AS "avg_temp_shed", mean("avg_temp_outdoor") AS "avg_temp_outdoor", sum("heater_on") AS "heater_on", sum("heater_on") / sum("interval") AS "pct.heater_on", sum("interval") AS "interval", sum("heater_kWhr") AS "heater_kWhr", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d30"."temp" FROM "d1"."temp" GROUP BY "yr_mo" END
 
 ERR: error parsing query: found yr_mo, expected GROUP BY time(...) at line 1, char 551
 
 SELECT MEAN("avg_temp_closet") FROM "d1"."temp" GROUP BY "yr_mo"
 
+May 10, 2023
+Grafana need training;
+ Grafana tutorial: https://www.youtube.com/watch?v=4qpI4T6_bUw
 
+May 13, 2023
+Create continuous queries for batrium data\
+CREATE CONTINUOUS QUERY "cq_bat_m5" ON "battery_db" BEGIN SELECT min("soc") AS "min_soc", min("Ahr2empty") AS "min_Ahr2empty", min("avgVoltage") AS "min_m30Voltage", mean("avgWatts") AS "avgWatts", min("minWatts") AS "maxDischargeWatts", max("maxWatts") AS "maxChargeWatts", min("minCurrent") AS "maxDischargeCurrent", max("maxCurrent") AS "maxChargeCurrent", max(kWh_charge) AS "kWh_charge", max(kWh_discharge) AS "kWh_discharge", sum("interval") / 3600 AS "interval", min(pakMinT) AS "pakMinT", min(pakMinV) AS "pakMinV", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "m5"."battery" FROM "s30"."battery" GROUP BY time(1d), * END
+
+Create continuous queries for batrium data\
+CREATE CONTINUOUS QUERY "cq_bat_m5" ON "battery_db" BEGIN SELECT min("min_soc") AS "min_soc", min("min_Ahr2empty") AS "min_Ahr2empty", min("min_m30Voltage") AS "min_m30Voltage", mean("avgWatts") AS "avgWatts", min("maxDischargeWatts") AS "maxDischargeWatts", max("maxChargeWatts") AS "maxChargeWatts", min("maxDischargeCurrent") AS "maxDischargeCurrent", max("maxChargeCurrent") AS "maxChargeCurrent", max(kWh_charge) AS "kWh_charge", max(kWh_discharge) AS "kWh_discharge", sum("interval") AS "interval", min(pakMinT) AS "pakMinT", min(pakMinV) AS "pakMinV", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d30"."battery" FROM "d1"."battery" GROUP BY "yr_mo", * END
+
+
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m30.battery' -format csv > m30battery.csv
+check temp tables at all retention levels 
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from s5.temp' -format csv > s5temp.csv
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m5.temp' -format csv > m5temp.csv
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m30.temp' -format csv > m30temp.csv
+pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.temp' -format csv > d1temp.csv
+
+May 14, 2023
+Need to move everything from m30.battery to s30.battery. then set continuous queries
+  create retention policy "s30" on "battery_db" duration 5d replication 1
+> select * INTO s30.battery FROM m30.battery
+ drop retention policy m30 on battery_db
+ create retention policy "m30" on "battery_db" duration 84d replication 1
+
+Fix some stuff
+select * FROM m5.battery
+show continuous queries  (copy for data dictionary)
+drop continuous query cq_bat_m5 on battery_db  bad continuous query wrong group by time and perhaps format of FROM & INTO arguments
+ drop retention policy m30 on battery_db Wrong duration
+ show retention policies
+create retention policy "m30" on "battery_db" duration 84d replication 1 
+show retention policies
+CREATE CONTINUOUS QUERY cq_bat_m5 ON battery_db BEGIN SELECT min(soc) AS min_soc, min(Ahr2empty) AS min_Ahr2empty, min(avgVoltage) AS min_m30Voltage, mean(avgWatts) AS avgWatts, min(minWatts) AS maxDischargeWatts, max(maxWatts) AS maxChargeWatts, min(minCurrent) AS maxDischargeCurrent, max(maxCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) / 3600 AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO "m5"."battery" FROM "s30"."battery" GROUP BY time(5m), * END
+
+CREATE CONTINUOUS QUERY "cq_bat_m30" ON "battery_db" BEGIN SELECT min("min_soc") AS "min_soc", min("min_Ahr2empty") AS "min_Ahr2empty", min("min_m30Voltage") AS "min_m30Voltage", mean("avgWatts") AS "avgWatts", min("maxDischargeWatts") AS "maxDischargeWatts", max("maxChargeWatts") AS "maxChargeWatts", min("maxDischargeCurrent") AS "maxDischargeCurrent", max("maxChargeCurrent") AS "maxChargeCurrent", max(kWh_charge) AS "kWh_charge", max(kWh_discharge) AS "kWh_discharge", sum("interval") AS "interval", min(pakMinT) AS "pakMinT", min(pakMinV) AS "pakMinV", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "m30"."battery" FROM "m5"."battery" GROUP BY time(30m), * END
+
+CREATE CONTINUOUS QUERY "cq_bat_d1" ON "battery_db" BEGIN SELECT min("min_soc") AS "min_soc", min("min_Ahr2empty") AS "min_Ahr2empty", min("min_m30Voltage") AS "min_m30Voltage", mean("avgWatts") AS "avgWatts", min("maxDischargeWatts") AS "maxDischargeWatts", max("maxChargeWatts") AS "maxChargeWatts", min("maxDischargeCurrent") AS "maxDischargeCurrent", max("maxChargeCurrent") AS "maxChargeCurrent", max(kWh_charge) AS "kWh_charge", max(kWh_discharge) AS "kWh_discharge", sum("interval") AS "interval", min(pakMinT) AS "pakMinT", min(pakMinV) AS "pakMinV", last("local_dt") AS "local_dt", last("yr_mo") AS "yr_mo" INTO "d1"."battery" FROM "m30"."battery" GROUP BY time(1d), * END
+
+May 16, 2023
+Checking Continuous queries
+cq_temp_m30 CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, last(heater) AS heater, sum(heater_on) AS heater_on, last(heater_watts) AS heater_watts, sum(heater_kWhr) AS heater_kWhr, sum(interval) AS interval, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.m30.temp FROM battery_db.m5.temp GROUP BY time(30m), * END
+cq_temp_d1  CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / 3600 AS heater_on, sum(heater_on) / sum(interval) AS "pct.heater_on", sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.d1.temp FROM battery_db.m30.temp GROUP BY time(1d), * END
+
+Checking continuous queries
+query grouping is on blocks of time UTC which means day is not local day
+Try droping and adding with format from show (no quote marks) To help with future edits to cq
+Does cq_temp_m5 have output "yr_mo"?  GROUP BY time(5m), * with the star = all tags
+What do we want to do with heater on-time, watts, kWhr ??
+  Watts detects if bulb is burned out..
+  first and last kWhr can give energy used during period. 
+  change first("heater") to max("heater")
+  change first("heater_watts") to mean("heater_watts")
+m30
+  change first("heater") to max("heater")
+  change first("heater_watts") to mean("heater_watts")
+  change last("local_dt") to first("local_dt")
+  first("heater_first_kWhr") AS "heater_first_kWhr"
+  last("heater_last_kWhr") AS "heater_last_kWhr"
+  drop last("yr_mo")  should be covered by GROUP BY *
+d1
+  last("heater_last_kWhr") – first(heater_first_kWhr) AS heater_kWhr
+show continuous queries  (copy for data dictionary)
+  get .csv s30.battery   
+  pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from s30.battery' -format csv > s30battery.csv
+  pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m5.battery' -format csv > m5battery.csv
+  pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m30.battery' -format csv > m30battery.csv
+  pi@solarPi4:~/Packet_Listner $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.battery' -format csv > d1battery.csv
+
+ set Batrium time
+
+  CONTINUOUS QUERY can have:
+     sum(heater_on) / sum(interval) AS "pct.heater_on", 
+     sum(interval) / 3600 AS interval
+     for battery make a h1.battery  because we want to see reset on charge/discharge cum kWhr hour aand day will be broken on UTC and batrium may be resetting on local midnight.  
+
+> show continuous queries
+cq_temp_m5  CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, first(heater) AS heater, sum(heat_interval) AS heater_on, first(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+cq_temp_m30 CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, last(heater) AS heater, sum(heater_on) AS heater_on, last(heater_watts) AS heater_watts, sum(heater_kWhr) AS heater_kWhr, sum(interval) AS interval, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.m30.temp FROM battery_db.m5.temp GROUP BY time(30m), * END
+cq_temp_d1  CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / 3600 AS heater_on, sum(heater_on) / sum(interval) AS "pct.heater_on", sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.d1.temp FROM battery_db.m30.temp GROUP BY time(1d), * END
+cq_bat_m5   CREATE CONTINUOUS QUERY cq_bat_m5 ON battery_db BEGIN SELECT min(soc) AS min_soc, min(Ahr2empty) AS min_Ahr2empty, min(avgVoltage) AS min_m30Voltage, mean(avgWatts) AS avgWatts, min(minWatts) AS maxDischargeWatts, max(maxWatts) AS maxChargeWatts, min(minCurrent) AS maxDischargeCurrent, max(maxCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) / 3600 AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.m5.battery FROM battery_db.s30.battery GROUP BY time(5m), * END
+cq_bat_m30  CREATE CONTINUOUS QUERY cq_bat_m30 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_m30Voltage) AS min_m30Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.m30.battery FROM battery_db.m5.battery GROUP BY time(30m), * END
+cq_bat_d1   CREATE CONTINUOUS QUERY cq_bat_d1 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_m30Voltage) AS min_m30Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, last(local_dt) AS local_dt, last(yr_mo) AS yr_mo INTO battery_db.d1.battery FROM battery_db.m30.battery GROUP BY time(1d), * END
+
+
+show retention policies
+name    duration   shardGroupDuration replicaN default
+----    --------   ------------------ -------- -------
+autogen 0s         168h0m0s           1        false
+s5      120h0m0s   24h0m0s            1        true
+m5      504h0m0s   24h0m0s            1        false
+d1      17472h0m0s 168h0m0s           1        false
+d30     0s         168h0m0s           1        false
+s30     120h0m0s   24h0m0s            1        false
+m30     2016h0m0s  24h0m0s            1        false
+
+ $ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from m5.battery' -format csv > m5battery.csv
+ 
+ tomorrow 5/19 fix temp CQs
+Try CQ without quoting variables:
+DROP CONTINUOUS QUERY cq_temp_m5 ON battery_db
+CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+SHOW CONTINUOUS QUERIES
+
+DROP CONTINUOUS QUERY cq_temp_m30 ON battery_db
+CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_last_kWhr) - first(heater_first_kWhr) AS heater_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m30.temp FROM battery_db.m5.temp GROUP BY time(5m), * END
+
+DROP CONTINUOUS QUERY cq_temp_d1 ON battery_db
+CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / 3600 AS heater_on, sum(heater_on) / sum(interval) AS "pct.heater_on", sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, first(local_dt) AS local_dt INTO battery_db.d1.temp FROM battery_db.m30.temp GROUP BY time(1d), * END
+
+What about measurements from Batrium 
+DROP CONTINUOUS QUERY cq_bat_m5 ON battery_db
+CREATE CONTINUOUS QUERY cq_bat_m5 ON battery_db BEGIN SELECT min(soc) AS min_soc, min(Ahr2empty) AS min_Ahr2empty, min(avgVoltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(minWatts) AS maxDischargeWatts, max(maxWatts) AS maxChargeWatts, min(minCurrent) AS maxDischargeCurrent, max(maxCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.m5.battery FROM battery_db.s30.battery GROUP BY time(5m), * END
+
+DROP CONTINUOUS QUERY cq_bat_m30 ON battery_db
+CREATE CONTINUOUS QUERY cq_bat_m30 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_Voltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) / 3600 AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.m30.battery FROM battery_db.m5.battery GROUP BY time(30m), * END
+
+DROP CONTINUOUS QUERY cq_bat_d1 ON battery_db
+CREATE CONTINUOUS QUERY cq_bat_d1 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_Voltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.d1.battery FROM battery_db.m30.battery GROUP BY time(1d), * END
+
+05/19/23
+cq_temp_m5  CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+cq_temp_m30 CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_last_kWhr) - first(heater_first_kWhr) AS heater_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m30.temp FROM battery_db.m5.temp GROUP BY time(5m), * END
+cq_temp_d1  CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / 3600 AS heater_on, sum(heater_on) / sum(interval) AS "pct.heater_on", sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, first(local_dt) AS local_dt INTO battery_db.d1.temp FROM battery_db.m30.temp GROUP BY time(1d), * END
+cq_bat_m5   CREATE CONTINUOUS QUERY cq_bat_m5 ON battery_db BEGIN SELECT min(soc) AS min_soc, min(Ahr2empty) AS min_Ahr2empty, min(avgVoltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(minWatts) AS maxDischargeWatts, max(maxWatts) AS maxChargeWatts, min(minCurrent) AS maxDischargeCurrent, max(maxCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.m5.battery FROM battery_db.s30.battery GROUP BY time(5m), * END
+cq_bat_m30  CREATE CONTINUOUS QUERY cq_bat_m30 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_Voltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) / 3600 AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.m30.battery FROM battery_db.m5.battery GROUP BY time(30m), * END
+cq_bat_d1   CREATE CONTINUOUS QUERY cq_bat_d1 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_Voltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.d1.battery FROM battery_db.m30.battery GROUP BY time(1d), * END
+
+> use _internal
+Using database _internal
+> select * from cq order by desc limit 10
+name: cq
+time                hostname queryFail queryOk
+----                -------- --------- -------
+1684524160000000000 solarPi4 12        7000
+1684524150000000000 solarPi4 12        7000
+1684524140000000000 solarPi4 12        7000
+1684524130000000000 solarPi4 12        7000
+1684524120000000000 solarPi4 12        7000
+1684524110000000000 solarPi4 12        7000
+1684524100000000000 solarPi4 12        7000
+1684524090000000000 solarPi4 12        7000
+1684524080000000000 solarPi4 12        7000
+1684524070000000000 solarPi4 12        7000
+
+old= CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, first(heater) AS heater, sum(heat_interval) AS heater_on, first(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+new= CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, last(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+
+select first(local_dt), last(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts from m5.temp where time > now()-2h  group by time(5m)
+
+difference  first(heater) AS heater vs  last(heater) AS heater
+            first(heater_watts) AS heater_watts  vs  mean(heater_watts) AS heater_watts
+cq_temp_m30 also not running
+
+try: copy of new changed to old: CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, first(heater) AS heater, sum(heat_interval) AS heater_on, first(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+Works try just changing to mean(heater_watts) AS heater_watts perhaps the field is int and can't take a float
+CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, first(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END
+doesn't work try just switching first(heater) to max(heater)
+CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, first(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.temp FROM battery_db.s5.temp GROUP BY time(5m), * END 
+try same fix on m30.temp and d1.temp
+cq_temp_m30 CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, first(heater_watts) AS heater_watts, last(heater_last_kWhr) - first(heater_first_kWhr) AS heater_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m30.temp FROM battery_db.m5.temp GROUP BY time(5m), * END
+CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / 3600 AS heater_on, sum(heater_on) / sum(interval) AS "pct.heater_on", sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, first(local_dt) AS local_dt INTO battery_db.d1.temp FROM battery_db.m30.temp GROUP BY time(1d), * END
+I don't think d1 has the problem need to check tomorrow.

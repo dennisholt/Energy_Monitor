@@ -2,7 +2,7 @@
 '''
 May 7, 2023 by: Dennis Holt
 UDP listener and parser for datalogging battery condition
-msg0X415A ~ 1478ms # lowest 2 pack voltage and temp with pack ID
+msg0X415A ~ 148ms # lowest 2 pack voltage and temp with pack ID
 msg0X3F34 ~ 591ms # shunt volts current watts capacity to empty
 msg0X3233 ~ 26.3sec # SOC, kWh Charge, kWh Discharge
 '''
@@ -49,6 +49,9 @@ def influx_init():
     '''connect to influx database'''
     influx_client = InfluxDBClient(host='localhost', port=8086) # 'solarPi4'
     influx_client.switch_database('battery_db')
+    # influx_client.drop_measurement(measurement="battery_db.m30.battery")
+    # print('measurements= ', influx_client.get_list_measurements())
+    # drop_measurement(measurement='')
     return influx_client
 
 def sortSecond(elem):
@@ -64,7 +67,7 @@ def main():
     node_list = []
     pack = Pack()
     shunt = Shunt()
-    while time.time() < start + 50: # run for 5 minutes
+    while True: # time.time() < start + 500: # run for 5 minutes
         mesType, batrum_data = get_batrum_packet(packet_conn)
         if mesType == 0x415A:
             process_415A(batrum_data, node_list, pack)
@@ -178,7 +181,7 @@ def process_3F34(batrum_data, shunt):
     # SOC= 99.51 Battery Voltage= 56.88 Battery Current= 1.74 Battery kW= 0.09919441986083985 Capacity= 598.1108125
 
 def process_3233(batrum_data, pack, shunt, influx_client):
-    '''msg0x3233 only every ~ 30 min process SOC etc and write everything to influx'''
+    '''msg0x3233 only every ~ 30 sec process SOC etc and write everything to influx'''
     soc, cap2empty, kWh_charge, kWh_discharge = struct.unpack('< 32x H 3f', batrum_data[:46])
     # cap2empty = cap2empty / 1000    # in watt hours
     #kWh_charge = kWh_charge / 1000
@@ -194,7 +197,7 @@ def process_3233(batrum_data, pack, shunt, influx_client):
     yr_mo = readTime[2:7]
     # Put together the influx record
     json_body=[
-            {"measurement": "m30.battery",         # Retention policy m30  DURATION 12w 
+            {"measurement": "battery",         # Retention policy m30  DURATION 12w 
             "tags":{"yr_mo":yr_mo},                # for monthly summary from read time
             "fields":{"interval":s_interval,       # seconds for shunt record
                     "local_dt":readTime,           # Readable local time 
@@ -216,11 +219,12 @@ def process_3233(batrum_data, pack, shunt, influx_client):
                     "pakMinT":pack.TempMin,
                     "pak2ndMinT":pack.Temp2ndMin,
                     "pakMinT_ID":pack.PakMinT,
-                    "pak2ndMinT_ID":pack.Pak2ndMin}
+                    "pak2ndMinT_ID":pack.Pak2ndMinT}
             }]
-    ret = influx_client.write_points(json_body)
+    ret = influx_client.write_points(json_body, retention_policy='s30')
+    # print("ret from influx= ", ret)
 #  re-initialize storage variables before return
-    print(json_body)
+    # print(json_body)
     node_list = []
     pack = Pack()
     shunt = Shunt()

@@ -166,4 +166,20 @@ Pack(VoltageMin=4.04, Voltage2ndMin=4.04, PakMinV=28, Pak2ndMinV=24, TempMin=17,
 shunt interval=  35.019935607910156
 Shunt(count=59, time=1683480109.4506066, sumVoltage=3242.4099999999994, sumCurrent=-72.99000000000001, minCurrent=-26.27, maxCurrent=24.02, sumWatts=-4017.8599999999997, minWatts=-1487.43, maxWatts=1373.23, Ahr2empty=600.994375)
 
+May 8, 2023
+influxdb.exceptions.InfluxDBClientError: 404: {"error":"database not found: \"battery_db.m30\""}
+pi@solarPi4:~/Packet_Listner $ sudo python3 PacketListner_V5h.py
+ret from influx=  True
+[{'measurement': 'battery_db.m30.battery', 'tags': {'yr_mo': '23-05'}, 'fields': {'interval': 15.153563737869263, 'local_dt': '2023-05-08T16:52:42', 'soc': 99.99, 'kWh_charge': 12.3693486328125, 'kWh_discharge': 4.9539580078125, 'avgVoltage': 56.94038461538465, 'avgCurrent': -1.4584615384615387, 'avgWatts': -83.01615384615383, 'minCurrent': -2.12, 'maxCurrent': -0.16, 'minWatts': -120.69, 'maxWatts': -9.26, 'Ahr2empty': 600.9829375, 'pakMinV': 4.055, 'pak2ndMinV': 4.055, 'pakMinV_ID': 27, 'pak2ndMinV_ID': 23, 'pakMinT': 19, 'pak2ndMinT': 19, 'pakMinT_ID': 27, 'pak2ndMinT_ID': 27}}]
+ret from influx=  True
+[{'measurement': 'battery_db.m30.battery', 'tags': {'yr_mo': '23-05'}, 'fields': {'interval': 30.31286907196045, 'local_dt': '2023-05-08T16:53:12', 'soc': 99.99, 'kWh_charge': 12.3693486328125, 'kWh_discharge': 4.954783203125, 'avgVoltage': 56.93705882352942, 'avgCurrent': -1.701176470588235, 'avgWatts': -96.8605882352941, 'minCurrent': -2.65, 'maxCurrent': -0.1, 'minWatts': -151.13, 'maxWatts': -5.86, 'Ahr2empty': 600.9684375, 'pakMinV': 4.055, 'pak2ndMinV': 4.055, 'pakMinV_ID': 27, 'pak2ndMinV_ID': 22, 'pakMinT': 19, 'pak2ndMinT': 19, 'pakMinT_ID': 27, 'pak2ndMinT_ID': 27}}]
 
+ select * from m30.battery where time > now()-2m
+name: battery
+time                Ahr2empty   avgCurrent         avgVoltage        avgWatts           interval           kWh_charge      kWh_discharge     local_dt            maxCurrent maxWatts minCurrent minWatts pak2ndMinT pak2ndMinT_ID pak2ndMinV pak2ndMinV_ID pakMinT pakMinT_ID pakMinV pakMinV_ID soc    yr_mo
+----                ---------   ----------         ----------        --------           --------           ----------      -------------     --------            ---------- -------- ---------- -------- ---------- ------------- ---------- ------------- ------- ---------- ------- ---------- ---    -----
+1683742959550619751 602.617625  0.6164705882352942 56.9754901960784  35.122941176470604 30.309401988983154 9.7727470703125 3.499748291015625 2023-05-10T14:22:39 1.15       65.34    0.27       15.31    15         28            4.055      27            15      22         4.055   27         100.26 23-05
+1683742980846379953 602.624     1.1005555555555557 56.98166666666667 62.78055555555555  21.093034982681274 9.773107421875  3.499748291015625 2023-05-10T14:23:00 2.26       128.87   0.44       25.25    15         28            4.06       28            15      22         4.06    22         100.27 23-05
+1683743011365134727 602.6373125 1.5856862745098044 56.98882352941171 90.35098039215686  30.310585021972656 9.7738720703125 3.499748291015625 2023-05-10T14:23:31 2.01       114.54   1.05       60.09    15         28            4.06       22            15      28         4.06    28         100.27 23-05
+1683743032665181475 602.65025   2.3227272727272723 56.99333333333334 132.38909090909095 21.09363079071045  9.7746279296875 3.499748291015625 2023-05-10T14:23:52 3.99       227.26   1.67       94.96    15         28            4.06       22            15      28         4.06    28         100.27 23-05
+1683743063180026430 602.67675   3.1027450980392164 57.0066666666667  176.89901960784314 30.31040620803833  9.776134765625  3.499748291015625 2023-05-10T14:24:23 4          228.38   2.52       143.45   15         28            4.06       22            15      28         4.06    28         100.27 23-05
