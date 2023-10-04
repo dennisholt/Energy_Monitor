@@ -69,4 +69,7 @@ Feb 5, 2023
     pip3 list     displays installed packages
     pipdeptree    displays installed packages in dependency tree
 
-
+June 07, 2023
+Post on data logger for epsolar tracer:  https://peakd.com/solar/@mytechtrail/logging-solar-production-with-a-raspberry-pi
+intro to pyserial    https://www.youtube.com/watch?v=kx4FoOAHG4U
+pyserial docs: https://pyserial.readthedocs.io/en/latest/shortintro.html

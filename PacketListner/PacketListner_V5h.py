@@ -28,6 +28,7 @@ class Shunt:
 
 @dataclass
 class Pack:
+    MedianVoltage: float = 99.9
     VoltageMin: float = 99.9
     Voltage2ndMin: float = 99.9
     PakMinV: int = 0
@@ -76,7 +77,7 @@ def main():
             process_3F34(batrum_data, shunt)
 
         elif mesType == 0X3233:
-            node_list, pack, shunt = process_3233(batrum_data, pack, shunt, influx_client)
+            pack, shunt = process_3233(batrum_data, pack, shunt, influx_client)
 
     packet_conn.close()
     influx_client.close()
@@ -142,6 +143,7 @@ def process_415A(batrum_data, node_list, pack):
         # sort in voltage order and replace saved if lower
         node_list.sort()
         #print(node_list)
+        pack.MedianVoltage = node_list[13][0]
         if pack.VoltageMin > node_list[0][0]:
             pack.VoltageMin = node_list[0][0]
             pack.PakMinV = node_list[0][2]
@@ -155,7 +157,7 @@ def process_415A(batrum_data, node_list, pack):
         if pack.Temp2ndMin > node_list[1][1]:
             pack.Temp2ndMin = node_list[1][1]
             pack.Pak2ndMinT = node_list[1][2]
-        node_list = []
+        node_list.clear()
         pack.need_1_16 = True
         pack.need_17_28 = True
         #print('pack class= ', pack)
@@ -222,15 +224,30 @@ def process_3233(batrum_data, pack, shunt, influx_client):
                     "pak2ndMinT_ID":pack.Pak2ndMinT}
             }]
     ret = influx_client.write_points(json_body, retention_policy='s30')
+    if soc < (20 * 100):
+        json_body=[
+            {"measurement": "lowPack",         # Retention policy d1  DURATION 104w 
+            "fields":{"local_dt":readTime,           # Readable local time 
+                    "soc":soc / 100,
+                    "Ahr2empty":round(shunt.Ahr2empty, 3),
+                    "avgVoltage":round(shunt.sumVoltage / shunt.count, 2),
+                    "medianV":pack.MedianVoltage,
+                    "pakMinV":pack.VoltageMin,
+                    "pak2ndMinV":pack.Voltage2ndMin,
+                    "pakMinV_ID":pack.PakMinV,
+                    "pak2ndMinV_ID":pack.Pak2ndMinV}
+            }]
+    ret = influx_client.write_points(json_body, retention_policy='d1')
+#   print(json_body)
     # print("ret from influx= ", ret)
 #  re-initialize storage variables before return
     # print(json_body)
-    node_list = []
+#    node_list.clear()
     pack = Pack()
     shunt = Shunt()
     #print('shunt interval= ', s_interval)
     #print(shunt)
-    return node_list, pack, shunt
+    return pack, shunt
 
 def ethernet_frame(raw_data):
     '''Unpack Ethernet frame'''
