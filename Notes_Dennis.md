@@ -1492,3 +1492,12 @@ sudo systemctl status MagnumMonitor.service
 
 drop measurement inverter
 show measurements  # should be no "inverter"
+
+Nov 11, 2023
+Looking at pack with lowest voltage at low SOC
+$ influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.lowPack' -format csv > lowPackNov11_23.csv
+then filezilla download to /Users/dennis/Documents/Family/JeffsHouse/PowerWallProject/BatteryManagement/ClosetTemp/
+
+Dec 12 2023
+Future project web scraper resource python asyncio package tutorial https://realpython.com/async-io-python/ 
+influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.d1_lowPack' -format csv > lowPackDec12_23.csv

@@ -65,13 +65,119 @@ May 13, 2023 Opened battery closet door
 Sep     2023 Added cell to #27 boost pack
 Sep 25, 2023 Fix one cell disconnected Pack #27 (small wire to + terminal)
              Closed battery closet door; Plugged in heater lights to S31 Smart Plug
+Nov 02, 2023 Battery pack #27 getting down to ~2.8v when SOC ~18.7% DCV ~ 45.1
+Nov 21, 2023 Changed Generator start voltage from 44.4 to 45.6
+Nov 25, 2023 Changed #27 boost battery to 8 cells; burned out 100W heater lamp replaced.
+Dec 09, 2023 Changed trigger voltage for logging lowPacks to shunt v < 47volts
+Dec 10, 2023 Changed closet temp setpoint on = 16.5; off = 18.5 
+                Worked on data logger for basement bedroom temp and Ra concentration
+Dec 16, 2023 Analized lowPack Generator ran 12/10&11 #27 is now strongest; 
+            #24 weakest #22 next could use one more cell. Could lower gen start back to 44.4v
+Dec 19, 2023 Gen ran 12/18 @19:20-23:50 SOC 20.22; Gen out 4000W; battery in 2780W;
+            pack #25&24 weakest at 3.17v
+            pak_25 3.17; 24 3.175; 20 3.185; 21 3.19; 14 3.195; 07 3.2; 13 3.2; 22 3.2;
+            11 3.205; 26 3.21; 12 3.215; 19 3.22; 28 3.22; 02 3.23; 03 3.23; 08 3.23;
+            23 3.235; 10 3.24; 04 3.25; 18 3.25; 06 3.26; 09 3.275; 15 3.28; 16 3.28;
+            01 3.285; 05 3.305; 17 3.315; 27 3.37;
+        #25 3.29v 21.68soc 130.34Ahr 46.55v; @gen on 3.17v 20.22soc 121.55Ahr 45.22v 
+        delta 1.33v aprox 0.12v drop for #25; could lower gen on by ~1 volt 
+Dec 21, 2023 Gen start to 43.6 volts
+Dec 24, 2023 Gen on at 42.93 ran 12/23 @19:42  Min pak#22 2.955v next 24 soc:19.46 #27 strongest
+
+
+
 
 
 
 
 # SETTINGS
 Oct 2020  
-MAGNUM
+MAGNUM  2023-08-09 12:54:30
+
+
+frame history
+inv_status	64 = 0x40  = INVERTMODE
+inv_fault	0 = No Fault
+inv_DC_v	562
+inv_DC_a	29
+AC_out_v	122
+AC_in_v	0
+inv_LED	1  = Inverter LED on Remote 'ON'
+charger_LED	0
+inv_rev	61  = 6.1
+bat_temp	25
+xformer_temp	57
+FET_temp	42
+inv_model	115 = MS4448PAE
+stack_mode	1 = Parallel stack - master
+AC_in_a	0
+AC_out_a	10
+AC_hz	600
+inv_toggle	0  
+charger_toggle	0
+eq_toggle	0
+search_w	5   = 5w
+bat_Ah	600     = 600 Ah
+bat_type	144  = absorption at 14.4 volts
+absorp_v	144
+Charge_a_pct	40   = 40%
+shore_a	30
+rmt_rev	32      = 3.2
+Parallel_pct	0
+force_charge	0
+gen_auto_start	1
+low_bat_cut_out	426  = 42.6 v
+AC_in_cut_out_v	155  = 80 v
+float_charge_v	560  
+eq_charge_v	0
+absorb_hrs	10
+timeOfDay_hour	12
+timeOfDay_minute	55
+gen_run_hrs1	20
+gen_start_temp	0
+gen_start_DC_v	444  = 44.4 v
+quite_time	0
+gen_start_time	96
+gen_stop_time	0
+gen_stop_DC_v	520   = 52.0 v
+gen_Vstart_delay	120
+gen_Vstop_delay	120
+gen_max_on_hrs	60
+gen_SOC_start	0
+gen_SOC_stop	90
+gen_start_DC_a	0
+gen_Astart_delay	120
+gen_stop_DC_a	4
+gen_Astop_delay	120
+quiet_time_start	96
+quiet_time_end	40
+gen_exercise_days	0
+gen_exercise_start_time	32
+gen_exercise_hrs	10
+top_off_minutes	0
+gen_warm_up_sec	60
+gen_cool_down_sec	60
+bat_eff_pct	0
+resets	0
+bat_size_ah	600
+ags_status	2
+ags_rev	52
+ags_temp	252
+gen_run_hrs2	0
+ags_bat_v	139
+ags_days_since_run	0
+bmk_soc	84
+bmk_DC_v	5627
+bmk_DC_a	1002
+bmk_min_v	4083
+bmk_max_v	5863
+bmk_Ah_in_out	-96
+bmk_Ah_trip	65535
+bmk_cum_Ah_out	101500
+bmk_rev	10
+bmk_fault	1
+rtr_rev	32  =  3.2
+
     Search Watts: 5
     Low Battery Cutout: 42.6v
     AC in: AUTO
@@ -204,3 +310,4 @@ Battery Swap Process
             Control S31 smart plug
 
 # SOFTWARE
+    Repository: https://github.com/dennisholt/Energy_Monitor

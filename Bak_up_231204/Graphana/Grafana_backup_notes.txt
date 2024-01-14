@@ -1,0 +1,7 @@
+Grafana file locations: /etc/grafana/grafana.ini    /var/lib/grafana/grafana.db
+to export dashboard from app: click share at top left (looks like fork path)
+    click export tab
+    enable "export for shareing externally"
+    click save to file
+    copy from downloads to backup location
+

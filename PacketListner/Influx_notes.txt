@@ -33,3 +33,6 @@ delete does not support specifying retention policy
 
 Preserve tags when copying measures, always group by *:
 select * into s5.s5_inverter from d1.ts5_inverter group by *
+
+Problem sum() comes up short depending on order CQs run. CQ should use base measure for input not another CQ output measure.
+

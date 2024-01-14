@@ -1,5 +1,6 @@
 #!/usr/bin python3
 '''
+Nov 27, 2023 Changed lowPack to record all packs when DC voltage is near generator start
 Sept 15, 2023 max & min current and watts = value now if count <= 1
 May 7, 2023 by: Dennis Holt
 UDP listener and parser for datalogging battery condition
@@ -11,9 +12,14 @@ from influxdb import InfluxDBClient
 import socket
 import struct
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+# from pprint import pprint  
 
 # define data classes for shunt and pack
+@dataclass
+class Node:
+    state: list[tuple] = field(default_factory=list)  #(float,float,int)
+
 @dataclass
 class Shunt:
     count: int = 0
@@ -67,18 +73,19 @@ def main():
     packet_conn = socket_init()     # connect to socket API
     start = time.time()
     node_list = []
+    node = Node()
     pack = Pack()
     shunt = Shunt()
     while True: # time.time() < start + 500: # run for 5 minutes
         mesType, batrum_data = get_batrum_packet(packet_conn)
         if mesType == 0x415A:
-            process_415A(batrum_data, node_list, pack)
+            process_415A(batrum_data, node_list, node, pack)
 
         elif mesType == 0X3F34:
             process_3F34(batrum_data, shunt)
 
         elif mesType == 0X3233:
-            pack, shunt = process_3233(batrum_data, pack, shunt, influx_client)
+            pack, shunt = process_3233(batrum_data, pack, shunt, node, influx_client)
 
     packet_conn.close()
     influx_client.close()
@@ -118,7 +125,7 @@ def get_batrum_packet(packet_conn):
             mesType = struct.unpack('< x H', data[:3])[0]
             return mesType, batrum_data
 
-def process_415A(batrum_data, node_list, pack):
+def process_415A(batrum_data, node_list, node, pack):
     '''Individual battery pack data: save lowest two voltage and temp plus pack ID'''
     rx_node, records, first_id, last_id = struct.unpack('! 8x B B B B', batrum_data[:12])
     # print('Records= {} first_id {} last_id {} Time {} DT {}'.format(records, first_id, last_id, t, dt))
@@ -157,7 +164,8 @@ def process_415A(batrum_data, node_list, pack):
             pack.PakMinT = node_list[0][2]
         if pack.Temp2ndMin > node_list[1][1]:
             pack.Temp2ndMin = node_list[1][1]
-            pack.Pak2ndMinT = node_list[1][2]
+            pack.Pak2ndMinT = node_list[1][2]  
+        node.state = sorted(node_list, key=sortThird)
         node_list.clear()
         pack.need_1_16 = True
         pack.need_17_28 = True
@@ -189,7 +197,7 @@ def process_3F34(batrum_data, shunt):
     #print('SOC= {} Battery Voltage= {} Battery Current= {} Battery W= {} Capacity= {}'.format(soc, s_v, s_c, s_w, Ahr2empty ))
     # SOC= 99.51 Battery Voltage= 56.88 Battery Current= 1.74 Battery kW= 0.09919441986083985 Capacity= 598.1108125
 
-def process_3233(batrum_data, pack, shunt, influx_client):
+def process_3233(batrum_data, pack, shunt, node, influx_client):
     '''msg0x3233 only every ~ 30 sec process SOC etc and write everything to influx'''
     soc, cap2empty, kWh_charge, kWh_discharge = struct.unpack('< 32x H 3f', batrum_data[:46])
     # cap2empty = cap2empty / 1000    # in watt hours
@@ -205,6 +213,7 @@ def process_3233(batrum_data, pack, shunt, influx_client):
     readTime = time.strftime("%Y-%m-%dT%H:%M:%S",now_str)
     yr_mo = readTime[2:7]
     # Put together the influx record
+    voltage = shunt.sumVoltage / shunt.count
     json_body=[
             {"measurement": "s30_battery",         # Retention policy m30  DURATION 12w 
             "tags":{"yr_mo":yr_mo},                # for monthly summary from read time
@@ -213,7 +222,7 @@ def process_3233(batrum_data, pack, shunt, influx_client):
                     "soc":soc / 100,        
                     "kWh_charge":kWh_charge / 1000,
                     "kWh_discharge":kWh_discharge / 1000,
-                    "avgVoltage":shunt.sumVoltage / shunt.count,           
+                    "avgVoltage": voltage,
                     "avgCurrent":shunt.sumCurrent / shunt.count,
                     "avgWatts":shunt.sumWatts / shunt.count,
                     "minCurrent":shunt.minCurrent,      
@@ -231,29 +240,26 @@ def process_3233(batrum_data, pack, shunt, influx_client):
                     "pak2ndMinT_ID":pack.Pak2ndMinT}
             }]
     ret = influx_client.write_points(json_body, retention_policy='s30')
-    if soc < (20 * 100):
-        json_body=[
-            {"measurement": "lowPack",         # Retention policy d1  DURATION 104w 
-            "fields":{"local_dt":readTime,           # Readable local time 
-                    "soc":soc / 100,
-                    "Ahr2empty":round(shunt.Ahr2empty, 3),
-                    "avgVoltage":round(shunt.sumVoltage / shunt.count, 2),
-                    "medianV":pack.MedianVoltage,
-                    "pakMinV":pack.VoltageMin,
-                    "pak2ndMinV":pack.Voltage2ndMin,
-                    "pakMinV_ID":pack.PakMinV,
-                    "pak2ndMinV_ID":pack.Pak2ndMinV}
-            }]
+    if voltage < 46.5:
+        fields_dict = {"local_dt": readTime,           # Readable local time 
+                        "soc": soc / 100,
+                        "Ahr2empty": round(shunt.Ahr2empty, 3),
+                        "avgVoltage": round(voltage, 2),
+                        "medianV": pack.MedianVoltage,
+                        "pakMinV": pack.VoltageMin,
+                        "pakMinV_ID": pack.PakMinV}
+        for n in node.state:
+            fields_dict.update(node_dict(*n))
+        
+        json_body= [
+                {"measurement": "d1_lowPack",         # Retention policy d1  DURATION 104w 
+                "fields":fields_dict}]
+        # print("out_node_list= ", node.state)
+        # pprint(json_body, sort_dicts= False)
+       
         ret = influx_client.write_points(json_body, retention_policy='d1')
-#   print(json_body)
-    # print("ret from influx= ", ret)
-#  re-initialize storage variables before return
-    # print(json_body)
-#    node_list.clear()
     pack = Pack()
     shunt = Shunt()
-    #print('shunt interval= ', s_interval)
-    #print(shunt)
     return pack, shunt
 
 def ethernet_frame(raw_data):
@@ -311,6 +317,9 @@ def udp_segment(data):
     src_port, dest_port, size = struct.unpack('! H H H 2x', data[:8])
     data = data[8:]
     return src_port, dest_port, size, data
+
+def node_dict(voltage, temp, pack):
+    return {f'pak_{pack:02d}': voltage}
 
 if __name__ == "__main__":
     main()

@@ -102,8 +102,8 @@ class g_stuff:
     sensors: list[sens]
     broker_address: str = "localhost"  # try "DietPi" or "Holtpi0" or "localhost" or "192.168.86.29"
                                     # broker_address = "192.168.0.111"  # Holt-Pi0b on Rosie
-    heat_on_setpoint: float = 15.5     # 15.5
-    heat_off_setpoint: float = 17.5    # 17.5
+    heat_on_setpoint: float = 16.5     # 15.5
+    heat_off_setpoint: float = 18.5    # 17.5
     loop_interval: float = 60
     closet_temp: float = None
     shed_temp: float = None
