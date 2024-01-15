@@ -1,9 +1,5 @@
 #!/usr/bin/python3   # RPi
 # #!/usr/local/bin/ python3  # MacBook
-# revised 01/13/24 
-#   fix interval low by avg 0.09 sec
-#   Watts out when generator is running are going to battery
-#       to house est = (AC_Watts_in - AC_watts_out) * 0.41 
 # revised by Dennis Holt July 30, 2023
 # Ben, need help with exception handling  
 # set-up needed: sudo pip install influxdb
@@ -27,7 +23,6 @@ class Magnum:
     sumWattsOut: float = 0
     sumGenWattsIn: float = 0
     maxWattsOut: float = -999.
-    gen2housePct: float = 0.41
     genRunTime: float = 0
     genStatus: int = -1
     genStartMode: int = -1
@@ -100,12 +95,10 @@ def get_process_magnum_record(ser, inv):
     # is inverter portion valid
     if out[10] == 0x3d and out[14] == 0x73:
  #       print('valid inverter portion')
-        genWatts = float(out[7] * out[16])
-        wattsOut = float(out[6] * out[17])
-        if genWatts > 300 or out[0] == 8:
-            wattsOut = (genWatts - wattsOut) * inv.gen2housePct
         inv.count += 1
+        genWatts = float(out[7] * out[16])
         inv.sumGenWattsIn += genWatts
+        wattsOut = float(out[6] * out[17])
         inv.sumWattsOut += wattsOut
         inv.maxWattsOut = max(inv.maxWattsOut, wattsOut)
         inv.inverterStatus = out[0]
@@ -123,13 +116,16 @@ def get_process_magnum_record(ser, inv):
 #        print('AGS header: ', out[21+21], ' generator status: ', inv.genStatus, 
 #            ' gen start mode: ', inv.genStartMode)
 
-def write_influx_record(inv, influx_client, interval, readTime):
+def write_influx_record(inv, influx_client, t1):
     '''write influx record'''
+    now = time.time()  # get time
+    interval = now - t1
+    now_str = time.localtime(now)
+    readTime = time.strftime("%Y-%m-%dT%H:%M:%S",now_str)
     yr_mo = readTime[2:7]
     avgGenWattsIn = inv.sumGenWattsIn / inv.count
-    avgWattsOut = inv.sumWattsOut / inv.count
     gen_running = 0
-    if avgGenWattsIn > 300 or inv.inverterStatus == 8:
+    if avgGenWattsIn > 300:
         gen_running = 1
     # Put together the influx record
     json_body=[
@@ -137,7 +133,7 @@ def write_influx_record(inv, influx_client, interval, readTime):
         "tags":{"yr_mo":yr_mo},             # for monthly summary from read time
         "fields":{"interval":interval,      # seconds for shunt record
                 "local_dt":readTime,        # Readable local time
-                "avgWattsOut":avgWattsOut,
+                "avgWattsOut":inv.sumWattsOut / inv.count,
                 "maxWattsOut":inv.maxWattsOut,
                 "avgGenWattsIn":avgGenWattsIn,
                 "genRunTime":(gen_running * interval) / 60,
@@ -162,19 +158,15 @@ def main():
     ser = serial_init() # connect to Magnum RS485 bus
 
     inv = Magnum()   # instance of dataclass
-    last_write = time.time() # init for timing 5 sec accuisition 
+    t1 = time.time() # init for timing 5 sec accuisition 
     while True: # test for xx writes of Magnum data to influx db # while True: # for i in range(2):
-        while (time.time() - last_write) < 4.956:    # collect data for ~5 sec
+        while (time.time() - t1) <= 5:    # collect data for 5 sec
             if ser.isOpen():
                 get_process_magnum_record(ser, inv)
             else:
                 open_serial(ser)
-        now = time.time()
-        interval = now - last_write
-        last_write = now
-        now_str = time.localtime(now)
-        readTime = time.strftime("%Y-%m-%dT%H:%M:%S",now_str)
-        write_influx_record(inv, influx_client, interval, readTime)
+        write_influx_record(inv, influx_client, t1)
+        t1 = time.time() # reset timing 5 sec accuisition 
         inv = Magnum()   # reset instance of dataclass
 
     if not log is None: 
