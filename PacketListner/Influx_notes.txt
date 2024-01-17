@@ -36,3 +36,7 @@ select * into s5.s5_inverter from d1.ts5_inverter group by *
 
 Problem sum() comes up short depending on order CQs run. CQ should use base measure for input not another CQ output measure.
 
+influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.d1_lowPack' -format csv > lowPackDec12_23.csv
+
+CQ timestamp is beginning of period !! ***
+

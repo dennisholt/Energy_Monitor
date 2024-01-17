@@ -1,0 +1,48 @@
+Influx status Jan 15, 2024 @ 16:55
+> show measurements
+name: measurements
+name
+----
+d1_battery
+d1_inverter
+d1_lowPack
+d1_temp
+lowPack
+m1_temp
+m30_Bedroom_temp
+m30_battery
+m30_inverter
+m30_temp
+m5_battery
+m5_inverter
+m5_temp
+s30_battery
+s30_inverter
+s5_inverter
+
+> show retention policies
+name    duration   shardGroupDuration replicaN default
+----    --------   ------------------ -------- -------
+autogen 0s         168h0m0s           1        false
+s5      120h0m0s   24h0m0s            1        true
+m5      504h0m0s   24h0m0s            1        false
+d1      17472h0m0s 168h0m0s           1        false
+d30     0s         168h0m0s           1        false
+m30     2016h0m0s  24h0m0s            1        false
+s30     336h0m0s   24h0m0s            1        false
+m1      504h0m0s   24h0m0s            1        false
+
+> show continuous queries
+name: battery_db
+name        query
+----        -----
+cq_temp_m5  CREATE CONTINUOUS QUERY cq_temp_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(temp_closet) AS avg_temp_closet, max(temp_closet) AS max_temp_closet, min(temp_closet) AS min_temp_closet, mean(temp_shed) AS avg_temp_shed, mean(temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heat_interval) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_kWhr) AS heater_last_kWhr, first(heater_kWhr) AS heater_first_kWhr INTO battery_db.m5.m5_temp FROM battery_db.m1.m1_temp GROUP BY time(5m), * END
+cq_temp_m30 CREATE CONTINUOUS QUERY cq_temp_m30 ON battery_db BEGIN SELECT sum(interval) AS interval, first(local_dt) AS local_dt, mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, max(heater) AS heater, sum(heater_on) AS heater_on, mean(heater_watts) AS heater_watts, last(heater_last_kWhr) - first(heater_first_kWhr) AS heater_kWhr INTO battery_db.m30.m30_temp FROM battery_db.m5.m5_temp GROUP BY time(30m), * END
+cq_temp_d1  CREATE CONTINUOUS QUERY cq_temp_d1 ON battery_db BEGIN SELECT mean(avg_temp_closet) AS avg_temp_closet, max(max_temp_closet) AS max_temp_closet, min(min_temp_closet) AS min_temp_closet, mean(avg_temp_shed) AS avg_temp_shed, mean(avg_temp_outdoor) AS avg_temp_outdoor, sum(heater_on) / sum(interval) AS pct_heater_on, sum(heater_on) / 3600 AS heater_on, sum(interval) / 3600 AS interval, sum(heater_kWhr) AS heater_kWhr, first(local_dt) AS local_dt INTO battery_db.d1.d1_temp FROM battery_db.m30.m30_temp GROUP BY time(1d, 4h), * END
+cq_bat_m5   CREATE CONTINUOUS QUERY cq_bat_m5 ON battery_db BEGIN SELECT min(soc) AS min_soc, min(Ahr2empty) AS min_Ahr2empty, min(avgVoltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(minWatts) AS maxDischargeWatts, max(maxWatts) AS maxChargeWatts, min(minCurrent) AS maxDischargeCurrent, max(maxCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.m5.m5_battery FROM battery_db.s30.s30_battery GROUP BY time(5m), * END
+cq_bat_m30  CREATE CONTINUOUS QUERY cq_bat_m30 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_Voltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) / 3600 AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.m30.m30_battery FROM battery_db.m5.m5_battery GROUP BY time(30m), * END
+cq_bat_d1   CREATE CONTINUOUS QUERY cq_bat_d1 ON battery_db BEGIN SELECT min(min_soc) AS min_soc, min(min_Ahr2empty) AS min_Ahr2empty, min(min_Voltage) AS min_Voltage, mean(avgWatts) AS avgWatts, min(maxDischargeWatts) AS maxDischargeWatts, max(maxChargeWatts) AS maxChargeWatts, min(maxDischargeCurrent) AS maxDischargeCurrent, max(maxChargeCurrent) AS maxChargeCurrent, max(kWh_charge) AS kWh_charge, max(kWh_discharge) AS kWh_discharge, sum(interval) AS interval, min(pakMinT) AS pakMinT, min(pakMinV) AS pakMinV, first(local_dt) AS local_dt INTO battery_db.d1.d1_battery FROM battery_db.m30.m30_battery GROUP BY time(1d, 4h), * END
+cq_inv_d1   CREATE CONTINUOUS QUERY cq_inv_d1 ON battery_db BEGIN SELECT sum(interval) AS interval, last(local_dt) AS local_dt, mean(avgWattsOut) AS avgWattsOut, max(maxWattsOut) AS maxWattsOut, mean(avgGenWattsIn) AS avgGenWattsIn, sum(genRunTime) AS genRunTime, last(genStatus) AS genStatus, last(genStartMode) AS genStartMode, last(inverterStatus) AS inverterStatus, last(inverterFault) AS inverterFault INTO battery_db.d1.d1_inverter FROM battery_db.m30.m30_inverter GROUP BY time(1d, 4h), * END
+cq_inv_m30  CREATE CONTINUOUS QUERY cq_inv_m30 ON battery_db BEGIN SELECT sum(interval) AS interval, last(local_dt) AS local_dt, mean(avgWattsOut) AS avgWattsOut, max(maxWattsOut) AS maxWattsOut, mean(avgGenWattsIn) AS avgGenWattsIn, sum(genRunTime) AS genRunTime, last(genStatus) AS genStatus, last(genStartMode) AS genStartMode, last(inverterStatus) AS inverterStatus, last(inverterFault) AS inverterFault INTO battery_db.m30.m30_inverter FROM battery_db.m5.m5_inverter GROUP BY time(30m), * END
+cq_inv_m5   CREATE CONTINUOUS QUERY cq_inv_m5 ON battery_db BEGIN SELECT sum(interval) AS interval, last(local_dt) AS local_dt, mean(avgWattsOut) AS avgWattsOut, max(maxWattsOut) AS maxWattsOut, mean(avgGenWattsIn) AS avgGenWattsIn, sum(genRunTime) AS genRunTime, last(genStatus) AS genStatus, last(genStartMode) AS genStartMode, last(inverterStatus) AS inverterStatus, last(inverterFault) AS inverterFault INTO battery_db.m5.m5_inverter FROM battery_db.s30.s30_inverter GROUP BY time(5m), * END
+cq_inv_s30  CREATE CONTINUOUS QUERY cq_inv_s30 ON battery_db BEGIN SELECT sum(interval) AS interval, last(local_dt) AS local_dt, mean(avgWattsOut) AS avgWattsOut, max(maxWattsOut) AS maxWattsOut, mean(avgGenWattsIn) AS avgGenWattsIn, sum(genRunTime) AS genRunTime, last(genStatus) AS genStatus, last(genStartMode) AS genStartMode, last(inverterStatus) AS inverterStatus, last(inverterFault) AS inverterFault INTO battery_db.s30.s30_inverter FROM battery_db.s5.s5_inverter GROUP BY time(30s), * END
