@@ -1501,3 +1501,17 @@ then filezilla download to /Users/dennis/Documents/Family/JeffsHouse/PowerWallPr
 Dec 12 2023
 Future project web scraper resource python asyncio package tutorial https://realpython.com/async-io-python/ 
 influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.d1_lowPack' -format csv > lowPackDec12_23.csv
+
+Jan 16 2024: Reconciling monthly summary
+  Problems:
+    in d1_inverter the time stamp doesn't agree with the local_dt at all
+
+Output measures:
+  When generator runs AC into the inverter averages about 5280 watts
+      about 2770. watts goes to the battery
+      about 1030 watts goes to the house load
+      however the battery charging power is the AC out measure while the generator is running
+      So the power to the house is inflated the excess needs to be subtracted -(2770 - 1030) = -1740
+
+  house_kWhr = (inverter avgWattsOut * inverter interval/1000) - (1740 * GenRunTime ) / (1000 * 60) 
+  house_kWhr = (inverter avgWattsOut * inverter interval/1000) - GenRunTime minutes / 34.48
