@@ -30,22 +30,25 @@ flowchart BT
         end
         rp4 -- HTTP --> gd
     end
+    
+subgraph bd [Shed]
+        pi0[/RPi Zero 2W/]
+        pi0 -- WiFi ---> idb
+        son["Sonoff 531\npower monitoring plug"]
+            son <-- MQTT --> pi0
+        mi[Magnum inverter]
+    gc[Generator controller]
+    mi & gc -- RS485 --> dl
+    bbm[Batrium battery monitor] -- UDP WiFi --> btm    
     subgraph "RPi 3"
         dl(Datalogger) -- "WiFi" --> idb
     end
-    mi[Magnum inverter]
-    gc[Generator controller]
-    mi & gc -- RS485 --> dl
-    bbm[Batrium battery monitor] -- UDP WiFi --> btm
-
-    pi0[/RPi Zero 2W/]
-    pi0 -- WiFi ---> idb
-
+end  
+    
     subgraph bc [Battery closet]
+        blb["Heating bulbs (2 x 100w)"] --> son 
         btt["Temp sensor"] -- I2C --> pi0
-        son["Sonoff 531\npower monitoring plug"]
-        son --> blb["Heating bulbs (2 x 100w)"]
-        son <-- MQTT --> pi0
+        bat["Battery Bank"] --> bbm
     end
 ```
 
