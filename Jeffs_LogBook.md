@@ -1,3 +1,55 @@
+# Overview
+
+```mermaid
+---
+title: Energy Flow
+---
+flowchart TD
+    sps["☀️\nSolar panels\n(shed)"]
+    spb["☀️\nSolar panels\n(barn)"]
+    cc1("Charge controller")
+    cc2("Charge controller")
+    sps ---> cc1
+    spb ---> cc2
+    cc1 & cc2 -- DC 48v ---> mi(["⚡️Magnum inverter"])
+    batt[(Battery)] <-- DC 48v ---> mi
+    gen[Generator] -- AC In ---> mi
+    mi == AC Out ===> house["🏠 House"]
+```
+
+```mermaid
+---
+title: Monitoring & Control
+---
+flowchart BT
+    subgraph "🏠"
+        gd(Grafana Dashboard)
+        subgraph rp4 ["RPi 4"]
+        idb[(InfluxDB)]
+        btm("Batrium Packet Monitoring")
+        end
+        rp4 -- HTTP --> gd
+    end
+    subgraph "RPi 3"
+        dl(Datalogger) -- "WiFi" --> idb
+    end
+    mi[Magnum inverter]
+    gc[Generator controller]
+    mi & gc -- RS485 --> dl
+    bbm[Batrium battery monitor] -- UDP WiFi --> btm
+
+    pi0[/RPi Zero 2W/]
+    pi0 -- WiFi ---> idb
+
+    subgraph bc [Battery closet]
+        btt["Temp sensor"] -- I2C --> pi0
+        son["Sonoff 531\npower monitoring plug"]
+        son --> blb["Heating bulbs (2 x 100w)"]
+        son <-- MQTT --> pi0
+    end
+```
+
+
 # LOG BOOK
 - Aug 2011 
     Build house; Install Lead Acid batteries (16 Rolls S-530 6v 400Ahr)
