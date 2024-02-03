@@ -1,0 +1,5 @@
+cable RS485 to USB
+    VID= 04E2  PID= 1411  MFG= EXARCORP XR21B1411
+USB 1.12
+lsusb  Bus=1  Dev=5 
+Default drive CDC_acm

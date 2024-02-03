@@ -1,0 +1,64 @@
+
+Using Influx v 1.8 32bit depreciated they are moving on to v2 which is 64bit requires 64bit OS on Pi.
+Will need to shift to Influx V2 at some point
+InfluxDB Python docs at: https://influxdb-python.readthedocs.io/en/latest/include-readme.html
+InfluxDB V1.8 docs at: https://docs.influxdata.com/influxdb/v1.8/guides/
+                        https://docs.influxdata.com/influxdb/v1/query_language/manage-database/
+
+# Database design
+    With influx 1.8 do not use same measurement name across retention policies
+    Some commands do not allow specifying RP
+        eg. delete from m30.temp where "yr_mo" = ''
+            result: ERR: error parsing query: retention policy not supported at line 1, char 1
+    group by only works with time and tags; field must be a tag if you want to use group by in queries
+    Show field name and type by measurement
+    show field keys & show tag keys  only works on default retention policy 
+        work around copy rp.measurement to default rp then show field keys
+        > select * into s5.m30_temp from m30.temp
+        > show field keys
+
+# Command Line Interface CLI
+    precision rfc3339  # will cause time to be returned in readable format
+
+# Query tricks and tequnics
+    Query output doesn't include tags unless it is an into query or a continuous query
+    to get tags use group by * or "tag name"
+
+
+try double quotes in: drop measurement "m30"."battery"  Works
+query: select * from m30.battery WHERE time > now() - 60s
+> select * FROM s30.battery WHERE time > now() - 1h
+$ sudo systemctl start PacketListner
+sudo systemctl status PacketListner
+
+delete does not support specifying retention policy
+
+Preserve tags when copying measures, always group by *:
+select * into s5.s5_inverter from d1.ts5_inverter group by *
+
+Problem sum() comes up short depending on order CQs run. CQ should use base measure for input not another CQ output measure.
+
+influx -precision 'rfc3339' -database 'battery_db' -execute 'select * from d1.d1_lowPack' -format csv > lowPackDec12_23.csv
+
+CQ timestamp is beginning of period !! ***
+
+CREATE RETENTION POLICY "one_day_only" ON "NOAA_water_database" DURATION 23h60m REPLICATION 1 DEFAULT
+
+CREATE RETENTION POLICY "h1" ON "battery_db" DURATION 180d REPLICATION 1 
+ALTER RETENTION POLICY
+ALTER RETENTION POLICY "m5" ON "battery_db" DURATION 45d 
+DROP RETENTION POLICY "temp" ON "battery_db"   // will deleat all measures in this retention policy
+
+>
+select * from s5.s5_inverter where time > now() -4h
+
+select time AS time, avgGenWattsIn AS avgGenWattsIn, avgWattsOut AS avgWattsOut, genInvWattsOut / 1.00 AS genInvWattsOut, genRunTime AS genRunTime, genStartMode AS genStartMode, genStatus AS genStatus, interval AS interval, inverterFault AS inverterFault, inverterStatus AS inverterStatus, local_dt AS local_dt, maxWattsOut AS local_dt INTO battery_db.s5.s5_inverter_temp FROM battery_db.s5.s5_inverter GROUP BY * 
+
+show field keys on battery_db from m5.m5_inverter_temp  // works
+
+select * INTO battery_db.s5.s5_inverter FROM battery_db.m5.m5_inverter_temp GROUP BY * 
+
+drop measurement m5_inverter_temp  //worked
+
+
+

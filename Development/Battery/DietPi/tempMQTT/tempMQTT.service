@@ -1,0 +1,20 @@
+# save filename.service file in /lib/systemd/system/
+# sudo systemctl daemon-reload
+# sudo systemctl enable filename.service
+# list what is running    systemctl list-units --type=service
+[Unit]
+Description=Read & log Temp & Power to influxdb;
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/Programs/tempMQTT/tempMQTT.py
+WorkingDirectory=/home/pi/Programs/tempMQTT/
+Restart=always
+RestartSec=30
+# Output to syslog
+# StandardOutput=syslog
+# StandardError=syslog
+# SyslogIdentifier=battery_temp_ctrl
+
+[Install]
+WantedBy=multi-user.target

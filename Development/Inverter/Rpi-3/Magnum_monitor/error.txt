@@ -1,0 +1,28 @@
+old:
+                out.extend(response)
+                out.frombytes(bytes([0xff, 0xff]))
+                fb.write (out)
+          #      outStr = " ".join(out[x].encode('hex') for x in range(0,len(out))) + '\n'
+                print(len(response), "  ",bytes(out).hex())
+                ser.flushInput()
+                a = time.time()
+New:
+                out.extend(response)
+                out.frombytes(bytes([0xff, 0xff]))
+                fb.write (out)
+                outStr = " ".join(out[x].encode('hex') for x in range(0,len(out))) + '\n'
+                print(len(response), "  ",outStr)
+                ser.flushInput()
+                a = time.time()
+    
+Error:
+    pi@Holt-Pi3-inv:~/Programs $ sudo python3 read_ser_days_3.py
+2023-07-23     1690135988.82704     1690222388.82704
+time 1690135988.827399
+Traceback (most recent call last):
+  File "/home/pi/Programs/read_ser_days_3.py", line 75, in <module>
+    outStr = " ".join(out[x].encode('hex') for x in range(0,len(out))) + '\n'
+  File "/home/pi/Programs/read_ser_days_3.py", line 75, in <genexpr>
+    outStr = " ".join(out[x].encode('hex') for x in range(0,len(out))) + '\n'
+AttributeError: 'int' object has no attribute 'encode'
+
