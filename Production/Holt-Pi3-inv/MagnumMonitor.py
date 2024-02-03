@@ -1,5 +1,7 @@
 #!/usr/bin/python3   # RPi
 # #!/usr/local/bin/ python3  # MacBook
+# rev 01/30/24
+#   add output inverter watts out when generator is running as genInvWattsOut
 # revised 01/13/24 
 #   fix interval low by avg 0.09 sec
 #   Watts out when generator is running are going to battery
@@ -129,8 +131,10 @@ def write_influx_record(inv, influx_client, interval, readTime):
     avgGenWattsIn = inv.sumGenWattsIn / inv.count
     avgWattsOut = inv.sumWattsOut / inv.count
     gen_running = 0
+    gen_inv_watts = float(0.0)
     if avgGenWattsIn > 300 or inv.inverterStatus == 8:
         gen_running = 1
+        gen_inv_watts = avgWattsOut
     # Put together the influx record
     json_body=[
         {"measurement": "s5_inverter",         # Retention policy s5  DURATION 5d 
@@ -140,6 +144,7 @@ def write_influx_record(inv, influx_client, interval, readTime):
                 "avgWattsOut":avgWattsOut,
                 "maxWattsOut":inv.maxWattsOut,
                 "avgGenWattsIn":avgGenWattsIn,
+                "genInvWattsOut":gen_inv_watts,
                 "genRunTime":(gen_running * interval) / 60,
                 "genStatus":inv.genStatus,
                 "genStartMode":inv.genStartMode,

@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# 02/01/24 add exponentially weighted closet temp average
 # 9/12/23 change output from m1.temp to m1.m1_temp 
 #           program location and name to   Production/tempMQTT
 # 8/17/23 Dennis Holt 
@@ -20,6 +21,7 @@
 #                "fields":{"interval":interval,       # seconds since last record
 #                          "local_dt":readTime[0:19], # Readable local time from time stamp
 #                          "temp_closet":   ,         # temperatures from Pi0 I2C connected sensors
+#                          "temp_closet_expWt": ,
 #                          "temp_shed":     ,
 #                          "temp_outdoor":  ,
 #                          "heater":        ,         # on/off from S31B MQTT status request
@@ -102,10 +104,12 @@ class g_stuff:
     sensors: list[sens]
     broker_address: str = "localhost"  # try "DietPi" or "Holtpi0" or "localhost" or "192.168.86.29"
                                     # broker_address = "192.168.0.111"  # Holt-Pi0b on Rosie
-    heat_on_setpoint: float = 16.5     # 15.5
-    heat_off_setpoint: float = 18.5    # 17.5
+    heat_on_setpoint: float = 17.5     # 15.5
+    heat_off_setpoint: float = 19.5    # 17.5
     loop_interval: float = 60
     closet_temp: float = None
+    alpha: float = 0.01
+    temp_closet_expWt: float = None
     shed_temp: float = None
     outdoor_temp: float = None
     prior_time: int = None   # for influx time stamp and interval int in nanoseconds
@@ -205,7 +209,10 @@ def write_record():
     now = time.time_ns()  # get time
     if g_stuff.prior_time is None:
         g_stuff.prior_time = now
+    if g_stuff.temp_closet_expWt is None:
+        g_stuff.temp_closet_expWt = g_stuff.closet_temp
     interval = (now - g_stuff.prior_time) / 1e9
+    g_stuff.temp_closet_expWt = g_stuff.temp_closet_expWt * (1 - g_stuff.alpha) + g_stuff.closet_temp * g_stuff.alpha
     now_str = time.localtime(now / 1e9)
     readTime = time.strftime("%Y-%m-%dT%H:%M:%S",now_str)
     yr_mo = readTime[2:7]
@@ -218,6 +225,7 @@ def write_record():
                     "fields":{"interval":interval,              # seconds since last record
                             "local_dt":readTime,              # Readable local time from time stamp
                             "temp_closet":g_stuff.closet_temp,        # from I2C connected sensors
+                            "temp_closet_expWt":g_stuff.temp_closet_expWt,
                             "temp_shed":g_stuff.shed_temp,
                             "temp_outdoor":g_stuff.outdoor_temp,
                             "heater":g_stuff.heater_state,                  # from MQTT S31B sensor message
