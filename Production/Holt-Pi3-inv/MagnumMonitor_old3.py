@@ -1,7 +1,5 @@
 #!/usr/bin/python3   # RPi
 # #!/usr/local/bin/ python3  # MacBook
-# rev 02/06/24
-#  back out the change to avgWattsOut removing the change made 1/16/24
 # rev 01/30/24
 #   add output inverter watts out when generator is running as genInvWattsOut
 # revised 01/13/24 
@@ -31,7 +29,7 @@ class Magnum:
     sumWattsOut: float = 0
     sumGenWattsIn: float = 0
     maxWattsOut: float = -999.
-    gen2housePct: float = 0.41 # not used as of 2/6/24
+    gen2housePct: float = 0.41
     genRunTime: float = 0
     genStatus: int = -1
     genStartMode: int = -1
@@ -106,6 +104,8 @@ def get_process_magnum_record(ser, inv):
  #       print('valid inverter portion')
         genWatts = float(out[7] * out[16])
         wattsOut = float(out[6] * out[17])
+        if genWatts > 300 or out[0] == 8:
+            wattsOut = (genWatts - wattsOut) * inv.gen2housePct
         inv.count += 1
         inv.sumGenWattsIn += genWatts
         inv.sumWattsOut += wattsOut
@@ -132,7 +132,7 @@ def write_influx_record(inv, influx_client, interval, readTime):
     avgWattsOut = inv.sumWattsOut / inv.count
     gen_running = 0
     gen_inv_watts = float(0.0)
-    if avgGenWattsIn > 300:
+    if avgGenWattsIn > 300 or inv.inverterStatus == 8:
         gen_running = 1
         gen_inv_watts = avgWattsOut
     # Put together the influx record

@@ -1,3 +1,5 @@
+Website: https://www.maxlinear.com/product/interface/uarts/usb-uarts/xr21b1411
+
 Exar/MxL USB Serial Driver
 ======================
 Version 1D  2021/9/14

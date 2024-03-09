@@ -1584,11 +1584,13 @@ Jan 16 2024: Reconciling monthly summary
     in d1_inverter the time stamp doesn't agree with the local_dt at all
 
 Output measures:
-  When generator runs AC into the inverter averages about 5280 watts
-      about 2770. watts goes to the battery
-      about 1030 watts goes to the house load
+  Looking at 9 generator runs between 2023-12-26 and 2024-01-09
+  When generator runs AC into the inverter averages about 4299 watts
+      about 2838. watts goes to the battery
+      about 653 watts goes to the house load
       however the battery charging power is the AC out measure while the generator is running
-      So the power to the house is inflated the excess needs to be subtracted -(2770 - 1030) = -1740
+      So the power to the house is part of the generator_in - AC_Out = diff
+      House is about 43.4% of diff 
 
   house_kWhr = (inverter avgWattsOut * inverter interval/1000) - (1740 * GenRunTime ) / (1000 * 60) 
   house_kWhr = (inverter avgWattsOut * inverter interval/1000) - GenRunTime minutes / 34.48

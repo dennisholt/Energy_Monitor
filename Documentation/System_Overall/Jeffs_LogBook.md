@@ -145,7 +145,13 @@ Nov 17, 2022 Changed battery heater to: on: 15.5C; off: 17.5C
             added m5_energy to influx from CQs on inverter, battery, temp 
             [time; Ahr2empty; avgGenWattsIn; avgWattsOut; avg_temp_closet; avg_temp_outdoor; avg_temp_shed; batWatts; genInvWattsOut; genRunTime; heater_first_kWhr; heater_last_kWhr; heater_on; kWh_charge; kWh_discharge; maxWattsOut; max_temp_closet; min_soc; min_temp_closet; pakMinV; pakMinV_ID; soc; voltage; yr_mo]
 - Feb 01, 2024 Added exponential weighted closet temp to DietPi and CQs.
+- Feb 06, 2024 2024: Changed MagnumMonitor.py to keep avgWattsOut unchanged when generator is running.
+The issue with that being the power to the batteries needs to be delt with in the analysis
+the genInvWattsOut field is added when the generator is on to enable this analysis.
+So, from 1/16/24 @ 18:00 to 2/3/24 @ 00:20 during any generator runs the avgWattsOut are adjusted to be 0.41 * (genWattsIn - avgWattsOut) in future it will be unchanged. 
+Also decided to keep all the daily summary using EST year around. so all days are 24 hr and it can match up with the weather service which is on EST also.
 
+Dropped the GROUP BY * so the yr_mo tag doesn't mess up the first day of each month with an extra record.  
 
 # SETTINGS
 Oct 2020  
